@@ -1,1 +1,63 @@
+#f input {
+  margin-bottom: 7px;
+}
 
+.bg_home {                       /*background image for homepage*/
+    min-height: 100vh;
+    
+    background:
+        linear-gradient(
+            to bottom,
+            rgba(255,255,255,1) 0%,
+            rgba(255,255,255,0.9) 20%,
+            rgba(255,255,255,0.6) 33%,
+            rgba(255,255,255,0.15) 50%,
+            rgba(255,255,255,0) 70%
+        ),
+        url("https://images.pexels.com/photos/5026349/pexels-photo-5026349.jpeg");
+
+    background-size: 100%;
+    background-position: center;
+    background-repeat: no-repeat;
+}
+
+.home_text {
+  position: absolute;
+  top: 18%;
+  z-index: 5;
+}
+
+.icon img {
+  float: left;
+  width: 8%;
+  height: auto;
+  margin-right: 20px;
+}
+.icon h1 {
+  margin-left: 10px;
+  position: relative
+}
+
+.navbar ul {
+  list-style: none;
+  display: flex;
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+}
+
+.navbar a {
+    text-decoration: none;
+    color: #000;
+    font-weight: bold;
+    border: 2px solid #333; 
+    padding: 8px 16px;
+    display: inline-block;
+    transition: background-color 0.3s;
+}
+
+.navbar a:hover {
+    background-color: #f0f0f0;
+}
+
+  
