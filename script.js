@@ -45,7 +45,7 @@ function showPage(id) {
 
   window.scrollTo(0, 0);
 
-  if (id === 'forms') {
+  if (id === 'f') {
     if (!formsInitialized) {
       initForms();              // First visit: wire up all DOM listeners
       formsInitialized = true;
@@ -130,14 +130,14 @@ function setFieldState(inputEl, errorEl, valid, message) {
 function validateName(val, inputEl, errorEl) {
   const ok = val.trim().length >= 2;
   return setFieldState(inputEl, errorEl, ok,
-    '⚠ Please enter your full name (at least 2 characters).');
+    'Please enter your full name (at least 2 characters).');
 }
 
 // Email — must match a basic email pattern
 function validateEmail(val, inputEl, errorEl) {
   const ok = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(val.trim());
   return setFieldState(inputEl, errorEl, ok,
-    '⚠ Please enter a valid email address.');
+    'Please enter a valid email address.');
 }
 
 // Age — whole number between 1 and 120
@@ -145,7 +145,7 @@ function validateAge(val, inputEl, errorEl) {
   const n  = Number(val);
   const ok = Number.isInteger(n) && n >= 1 && n <= 120;
   return setFieldState(inputEl, errorEl, ok,
-    '⚠ Please enter a valid age (1–120).');
+    'Please enter a valid age (1–120).');
 }
 
 // Organization — at least 2 non-whitespace characters
@@ -165,7 +165,7 @@ function validatePhone(val, inputEl, errorEl) {
   }
   const ok = /^[\d\s\-\+\(\)\.]{7,20}$/.test(val.trim());
   return setFieldState(inputEl, errorEl, ok,
-    '⚠ Phone number format looks invalid.');
+    'Phone number format looks invalid.');
 }
 
 
