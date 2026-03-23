@@ -23,27 +23,27 @@
 
         <div class="col-md-6">
             <label class="form-label">Session Title</label>
-            <input type="text" class="form-control" required>
+            <input id="title" type="text" class="form-control" required>
         </div>
 
         <div class="col-md-6">
             <label class="form-label">Workshop</label>
-            <input type="text" class="form-control" required>
+            <input id="category" type="text" class="form-control" required>
         </div>
 
         <div class="col-md-3">
             <label class="form-label">Duration</label>
-            <input type="text" class="form-control" required>
+            <input id="duration" type="text" class="form-control" required>
         </div>
 
         <div class="col-md-3">
             <label class="form-label">Registration Fee</label>
-            <input type="number" class="form-control" required>
+            <input id="price" type="number" class="form-control" required>
         </div>
 
         <div class="col-md-6">
             <label class="form-label">Speaker</label>
-            <input type="text" class="form-control">
+            <input id="speaker" type="text" class="form-control">
         </div>
 
         <div class="col-12">
@@ -54,7 +54,7 @@
 
     <hr>
 
-    <input type="text" class="form-control mb-3" placeholder="Search sessions...">
+    <input id="search" type="text" class="form-control mb-3" placeholder="Search sessions...">
 
     <table class="table table-bordered">
         <thead>
@@ -67,19 +67,16 @@
                 <th>Speaker</th>
             </tr>
         </thead>
-        <tbody>
-            <tr>
-                <td>001</td>
-                <td>Ant Technology</td>
-                <td>Biotech</td>
-                <td>4 hrs</td>
-                <td>$120</td>
-                <td>John Attendee</td>
-            </tr>
+        <tbody id="tableBody">
+            
         </tbody>
     </table>
 
 </div>
+
+
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script src="script.js"></script>
 
 </body>
 </html>
