@@ -17,6 +17,10 @@ document.addEventListener("DOMContentLoaded", () => {
       phone: document.getElementById("phone"),
     };
 
+    if (!fields.name || !fields.email || !fields.age || !fields.org || !fields.phone) {
+      return;
+    }
+
     const saveBtn = form.querySelector("button");
     let editId = null;
 
@@ -42,6 +46,7 @@ document.addEventListener("DOMContentLoaded", () => {
     tbody.addEventListener("click", (e) => {
       const btn = e.target.closest("button[data-action]");
       if (!btn) return;
+
       const id = btn.dataset.id;
       if (btn.dataset.action === "edit") startEdit(id);
       if (btn.dataset.action === "delete") removeMember(id);
@@ -131,6 +136,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     function render() {
       tbody.innerHTML = "";
+
       if (!members.length) {
         tbody.innerHTML =
           '<tr><td colspan="6" class="text-center text-muted">No entries yet.</td></tr>';
@@ -174,7 +180,12 @@ document.addEventListener("DOMContentLoaded", () => {
           <table class="table table-striped">
             <thead>
               <tr>
-                <th>Name</th><th>Email</th><th>Age</th><th>Organization/Address</th><th>Phone</th><th>Actions</th>
+                <th>Name</th>
+                <th>Email</th>
+                <th>Age</th>
+                <th>Organization/Address</th>
+                <th>Phone</th>
+                <th>Actions</th>
               </tr>
             </thead>
             <tbody id="memberTableBody"></tbody>
@@ -248,6 +259,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const form = titleInput.closest("form");
     if (!form) return;
 
+    const table = tableBody.closest("table");
     const idDisplay = form.querySelector('input[disabled]');
     const submitBtn = form.querySelector('button[type="submit"]');
     const searchInput = window.jQuery ? $("#search") : null;
@@ -279,14 +291,8 @@ document.addEventListener("DOMContentLoaded", () => {
       if (!btn) return;
 
       const id = btn.dataset.id;
-
-      if (btn.dataset.action === "edit") {
-        startEdit(id);
-      }
-
-      if (btn.dataset.action === "delete") {
-        removeSession(id);
-      }
+      if (btn.dataset.action === "edit") startEdit(id);
+      if (btn.dataset.action === "delete") removeSession(id);
     });
 
     function submitSessionForm() {
@@ -389,6 +395,7 @@ document.addEventListener("DOMContentLoaded", () => {
       if (submitBtn) submitBtn.textContent = "Update Session";
       const cancelBtn = document.getElementById("cancelCatalogEdit");
       if (cancelBtn) cancelBtn.classList.remove("d-none");
+      window.scrollTo({ top: 0, behavior: "smooth" });
     }
 
     function removeSession(id) {
@@ -416,14 +423,18 @@ document.addEventListener("DOMContentLoaded", () => {
       const term = String(query || "").trim().toLowerCase();
       if (!term) return sessions;
 
-      return sessions.filter((session) =>
-        session.title.toLowerCase().includes(term) ||
-        session.category.toLowerCase().includes(term)
-      );
+      return sessions.filter((session) => {
+        return (
+          session.title.toLowerCase().includes(term) ||
+          session.category.toLowerCase().includes(term)
+        );
+      });
     }
 
     function addActionsHeader() {
-      const headRow = document.querySelector("table thead tr");
+      if (!table) return;
+
+      const headRow = table.querySelector("thead tr");
       if (!headRow) return;
 
       const hasActions = Array.from(headRow.children).some(
