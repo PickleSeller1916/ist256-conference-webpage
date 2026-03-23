@@ -217,4 +217,75 @@ document.addEventListener("DOMContentLoaded", () => {
       .replaceAll('"', "&quot;")
       .replaceAll("'", "&#39;");
   }
-});
+
+if (document.getElementById("title")) {
+
+    const form = document.querySelector("form");
+
+    form.addEventListener("submit", function(e) {
+        e.preventDefault();
+
+        let title = document.getElementById("title").value;
+        let category = document.getElementById("category").value;
+        let duration = document.getElementById("duration").value;
+        let price = document.getElementById("price").value;
+        let speaker = document.getElementById("speaker").value;
+
+        if (!title || !category || !duration || !price) {
+            alert("Please fill all required fields");
+            return;
+        }
+
+        let session = {
+            id: Date.now(),
+            title,
+            category,
+            duration,
+            price,
+            speaker
+        };
+
+        let data = JSON.parse(localStorage.getItem("sessions")) || [];
+        data.push(session);
+        localStorage.setItem("sessions", JSON.stringify(data));
+
+        displayData();
+        form.reset();
+    });
+
+    function displayData(filter = "") {
+        let data = JSON.parse(localStorage.getItem("sessions")) || [];
+        let table = document.getElementById("tableBody");
+
+        if (!table) return;
+
+        table.innerHTML = "";
+
+        data
+        .filter(item =>
+            item.title.toLowerCase().includes(filter.toLowerCase()) ||
+            item.category.toLowerCase().includes(filter.toLowerCase())
+        )
+        .forEach(item => {
+            table.innerHTML += `
+                <tr>
+                    <td>${item.id}</td>
+                    <td>${item.title}</td>
+                    <td>${item.category}</td>
+                    <td>${item.duration}</td>
+                    <td>${item.price}</td>
+                    <td>${item.speaker || ""}</td>
+                </tr>
+            `;
+        });
+    }
+
+    displayData();
+
+    const search = document.getElementById("search");
+    if (search) {
+        search.addEventListener("keyup", function() {
+            displayData(this.value);
+        });
+    }
+}
