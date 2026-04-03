@@ -4,6 +4,7 @@ document.addEventListener("DOMContentLoaded", () => {
   initMemberForm();
   initSessionCatalog();
   initShoppingCartPage();
+  initCheckoutFinalizationPage();
 
   function initMemberForm() {
     const STORAGE_KEY = "conference_members_v2";
@@ -506,12 +507,13 @@ document.addEventListener("DOMContentLoaded", () => {
       description: document.getElementById("productDescription")
     };
 
-    if (!searchInput || !productDisplay || !cartItemsContainer || !transportDataBtn) {
+    if (!searchInput || !productDisplay || !cartItemsContainer) {
       return;
     }
 
     const PRODUCT_STORAGE_KEY = "conference_store_products_v1";
     const CART_STORAGE_KEY = "conference_cart_items_v1";
+    let storageEnabled = true;
 
     const starterProducts = [
       {
@@ -611,7 +613,9 @@ document.addEventListener("DOMContentLoaded", () => {
       removeFromCart(button.dataset.removeId);
     });
 
-    transportDataBtn.addEventListener("click", transportCartData);
+    if (transportDataBtn) {
+      transportDataBtn.addEventListener("click", transportCartData);
+    }
 
     function seedProducts() {
       const catalogSessions = loadCatalogSessions();
@@ -640,7 +644,7 @@ document.addEventListener("DOMContentLoaded", () => {
         }
       });
 
-      localStorage.setItem(PRODUCT_STORAGE_KEY, JSON.stringify(merged));
+      writeJson(PRODUCT_STORAGE_KEY, merged);
     }
 
     function loadCatalogSessions() {
@@ -659,7 +663,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     function saveCart() {
-      localStorage.setItem(CART_STORAGE_KEY, JSON.stringify(cart));
+      writeJson(CART_STORAGE_KEY, cart);
     }
 
     function filterProducts(query) {
@@ -806,7 +810,7 @@ document.addEventListener("DOMContentLoaded", () => {
       const removedProduct = allProducts.splice(productIndex, 1)[0];
       cart = cart.filter((item) => item.id !== productId);
 
-      localStorage.setItem(PRODUCT_STORAGE_KEY, JSON.stringify(allProducts));
+      writeJson(PRODUCT_STORAGE_KEY, allProducts);
       saveCart();
       renderProducts(filterProducts(searchInput.value));
       renderCart();
@@ -842,7 +846,7 @@ document.addEventListener("DOMContentLoaded", () => {
         allProducts.push(product);
       }
 
-      localStorage.setItem(PRODUCT_STORAGE_KEY, JSON.stringify(allProducts));
+      writeJson(PRODUCT_STORAGE_KEY, allProducts);
       renderProducts(filterProducts(searchInput.value));
       resetProductForm();
       showStatus(`${product.title} was saved to the product JSON collection.`, "success");
@@ -948,6 +952,24 @@ document.addEventListener("DOMContentLoaded", () => {
       }));
     }
 
+    function buildRegistrationPayload(formData) {
+      return {
+        submittedAt: new Date().toISOString(),
+        attendee: {
+          name: formData.name,
+          email: formData.email
+        },
+        participationType: formData.participationType,
+        publicationPreference: formData.publicationPreference,
+        sessionPreferences: formData.sessionPreferences,
+        rsvpNotes: formData.notes,
+        confirmAttendance: formData.confirmAttendance,
+        itemCount: cart.length,
+        orderTotal: Number(formatPrice(cart.reduce((sum, item) => sum + Number(item.price || 0), 0))),
+        items: buildPayload()
+      };
+    }
+
     function transportCartData() {
       const payload = {
         submittedAt: new Date().toISOString(),
@@ -971,7 +993,7 @@ document.addEventListener("DOMContentLoaded", () => {
       showStatus("Preparing JSON payload for the future RESTful API...", "info");
 
       window.jQuery.ajax({
-        url: "https://example.com/api/conference-cart",
+        url: "https://jsonplaceholder.typicode.com/posts",
         method: "POST",
         data: JSON.stringify(payload),
         contentType: "application/json; charset=UTF-8",
@@ -982,6 +1004,223 @@ document.addEventListener("DOMContentLoaded", () => {
       }).fail(() => {
         showStatus("AJAX request prepared and attempted. The API endpoint is not active yet, so the JSON payload is shown below for submission testing.", "secondary");
       });
+    }
+
+    function mountInlineCheckoutSection() {
+      const section = document.getElementById("inlineCheckoutSection");
+      if (!section) return;
+
+      section.insertAdjacentHTML(
+        "beforeend",
+        `
+          <div class="row g-4 mt-1">
+            <div class="col-lg-7">
+              <form id="inlineCheckoutForm" novalidate>
+                <div class="row g-3">
+                  <div class="col-md-6">
+                    <label for="inlineName" class="form-label">Full Name</label>
+                    <input type="text" id="inlineName" name="name" class="form-control" placeholder="Jordan Lee">
+                  </div>
+                  <div class="col-md-6">
+                    <label for="inlineEmail" class="form-label">Email Address</label>
+                    <input type="email" id="inlineEmail" name="email" class="form-control" placeholder="jordan@example.com">
+                  </div>
+                  <div class="col-md-6">
+                    <label for="inlineParticipation" class="form-label">Participation Type</label>
+                    <select id="inlineParticipation" name="participationType" class="form-select">
+                      <option value="">Select an option</option>
+                      <option value="In-Person">In-Person</option>
+                      <option value="Virtual">Virtual</option>
+                      <option value="VIP">VIP</option>
+                    </select>
+                  </div>
+                  <div class="col-md-6">
+                    <label for="inlinePublication" class="form-label">Publication Preference</label>
+                    <select id="inlinePublication" name="publicationPreference" class="form-select">
+                      <option value="">Select a preference</option>
+                      <option value="Public attendee list">Public attendee list</option>
+                      <option value="Private attendee list">Private attendee list</option>
+                      <option value="Email updates only">Email updates only</option>
+                    </select>
+                  </div>
+                  <div class="col-12">
+                    <label class="form-label">Session Preferences</label>
+                    <div id="inlineSessionOptions"></div>
+                  </div>
+                  <div class="col-12">
+                    <label for="inlineNotes" class="form-label">RSVP Notes</label>
+                    <textarea id="inlineNotes" name="notes" rows="4" class="form-control" placeholder="Add arrival notes, accessibility requests, or other details."></textarea>
+                  </div>
+                  <div class="col-12">
+                    <div class="form-check">
+                      <input type="checkbox" id="inlineConfirm" name="confirmAttendance" class="form-check-input">
+                      <label for="inlineConfirm" class="form-check-label">I confirm that the information above is correct.</label>
+                    </div>
+                  </div>
+                  <div class="col-12 d-flex flex-wrap gap-2">
+                    <button type="submit" class="btn btn-success">Submit Registration from Cart</button>
+                    <button type="button" id="resetInlineCheckout" class="btn btn-outline-secondary">Reset Finalization Form</button>
+                  </div>
+                </div>
+              </form>
+              <div id="inlineCheckoutErrors" class="alert alert-danger small mt-3 d-none"></div>
+              <div id="inlineCheckoutStatus" class="alert alert-info small mt-3">Use this form to submit your final conference registration directly from the shopping cart.</div>
+            </div>
+            <div class="col-lg-5">
+              <h5>Registration JSON</h5>
+              <p class="small text-muted">This JSON object is prepared and sent to the RESTful API using AJAX.</p>
+              <textarea id="inlineCheckoutPayload" class="form-control" rows="18" readonly></textarea>
+            </div>
+          </div>
+        `
+      );
+
+      const form = document.getElementById("inlineCheckoutForm");
+      const sessionOptions = document.getElementById("inlineSessionOptions");
+      const errorsBox = document.getElementById("inlineCheckoutErrors");
+      const statusBox = document.getElementById("inlineCheckoutStatus");
+      const payloadBox = document.getElementById("inlineCheckoutPayload");
+      const resetBtn = document.getElementById("resetInlineCheckout");
+
+      renderSessionOptions();
+
+      form.addEventListener("submit", (event) => {
+        event.preventDefault();
+        submitInlineCheckout();
+      });
+
+      resetBtn.addEventListener("click", () => {
+        form.reset();
+        errorsBox.classList.add("d-none");
+        errorsBox.innerHTML = "";
+        payloadBox.value = "";
+        statusBox.className = "alert alert-info small mt-3";
+        statusBox.textContent = "Use this form to submit your final conference registration directly from the shopping cart.";
+      });
+
+      function renderSessionOptions() {
+        const sessionTitles = [...new Set(cart.map((item) => item.title).filter(Boolean))];
+        const fallbackSessions = [
+          "Opening Keynote",
+          "AI in Event Planning Workshop",
+          "VIP Networking Lunch"
+        ];
+        const allSessions = [...new Set([...sessionTitles, ...fallbackSessions])];
+
+        sessionOptions.innerHTML = allSessions
+          .map((title, index) => {
+            return `
+              <div class="form-check">
+                <input type="checkbox" class="form-check-input" id="inlineSession${index}" name="sessionPreference" value="${safeAttr(title)}">
+                <label class="form-check-label" for="inlineSession${index}">${safeCart(title)}</label>
+              </div>
+            `;
+          })
+          .join("");
+      }
+
+      function submitInlineCheckout() {
+        const formData = {
+          name: form.elements.name.value.trim(),
+          email: form.elements.email.value.trim(),
+          participationType: form.elements.participationType.value,
+          publicationPreference: form.elements.publicationPreference.value,
+          notes: form.elements.notes.value.trim(),
+          confirmAttendance: form.elements.confirmAttendance.checked,
+          sessionPreferences: Array.from(
+            form.querySelectorAll("input[name='sessionPreference']:checked")
+          ).map((input) => input.value)
+        };
+
+        const problems = validateInlineCheckout(formData);
+        if (problems.length) {
+          errorsBox.classList.remove("d-none");
+          errorsBox.innerHTML = problems.map((problem) => `<div>${safeCart(problem)}</div>`).join("");
+          statusBox.className = "alert alert-danger small mt-3";
+          statusBox.textContent = "Please fix the finalization form before submitting.";
+          return;
+        }
+
+        errorsBox.classList.add("d-none");
+        errorsBox.innerHTML = "";
+
+        const payload = buildRegistrationPayload(formData);
+        payloadBox.value = JSON.stringify(payload, null, 2);
+
+        window.jQuery.ajax({
+          url: "https://jsonplaceholder.typicode.com/posts",
+          method: "POST",
+          data: JSON.stringify(payload),
+          contentType: "application/json; charset=UTF-8",
+          dataType: "json",
+          timeout: 5000
+        }).done(() => {
+          statusBox.className = "alert alert-success small mt-3";
+          statusBox.textContent = "Your registration was prepared and sent by AJAX directly from the shopping cart page.";
+        }).fail(() => {
+          statusBox.className = "alert alert-secondary small mt-3";
+          statusBox.textContent = "The registration JSON was created and an AJAX request was attempted from the shopping cart page.";
+        });
+      }
+    }
+
+    function updateInlineCheckoutSessions() {
+      const sessionOptions = document.getElementById("inlineSessionOptions");
+      if (!sessionOptions) return;
+
+      const sessionTitles = [...new Set(cart.map((item) => item.title).filter(Boolean))];
+      const fallbackSessions = [
+        "Opening Keynote",
+        "AI in Event Planning Workshop",
+        "VIP Networking Lunch"
+      ];
+      const allSessions = [...new Set([...sessionTitles, ...fallbackSessions])];
+
+      sessionOptions.innerHTML = allSessions
+        .map((title, index) => {
+          return `
+            <div class="form-check">
+              <input type="checkbox" class="form-check-input" id="inlineSession${index}" name="sessionPreference" value="${safeAttr(title)}">
+              <label class="form-check-label" for="inlineSession${index}">${safeCart(title)}</label>
+            </div>
+          `;
+        })
+        .join("");
+    }
+
+    function validateInlineCheckout(data) {
+      const problems = [];
+      const validEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(data.email);
+
+      if (!cart.length) {
+        problems.push("Add at least one conference item to the shopping cart.");
+      }
+
+      if (!data.name) {
+        problems.push("Full name is required.");
+      }
+
+      if (!data.email || !validEmail) {
+        problems.push("A valid email address is required.");
+      }
+
+      if (!data.participationType) {
+        problems.push("Choose a participation type.");
+      }
+
+      if (!data.publicationPreference) {
+        problems.push("Choose a publication preference.");
+      }
+
+      if (!data.sessionPreferences.length) {
+        problems.push("Select at least one session preference.");
+      }
+
+      if (!data.confirmAttendance) {
+        problems.push("Confirm that the registration information is correct.");
+      }
+
+      return problems;
     }
 
     function validateProductFields(product) {
@@ -999,7 +1238,11 @@ document.addEventListener("DOMContentLoaded", () => {
       area.id = "cartStatus";
       area.className = "alert alert-info small mt-3";
       area.textContent = "Search the catalog and add conference products to your cart.";
-      transportDataBtn.insertAdjacentElement("afterend", area);
+      if (transportDataBtn) {
+        transportDataBtn.insertAdjacentElement("afterend", area);
+      } else {
+        cartItemsContainer.parentElement.appendChild(area);
+      }
       return area;
     }
 
@@ -1023,8 +1266,11 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     function showStatus(message, type) {
-      statusArea.className = `alert alert-${type} small mt-3`;
-      statusArea.textContent = message;
+      const storageNote = storageEnabled
+        ? ""
+        : " Local storage is unavailable in this browser session, so data may not persist after refresh.";
+      statusArea.className = `alert alert- small mt-3`;
+      statusArea.textContent = message + storageNote;
     }
 
     function readJson(key, fallback) {
@@ -1032,7 +1278,19 @@ document.addEventListener("DOMContentLoaded", () => {
         const raw = localStorage.getItem(key);
         return raw ? JSON.parse(raw) : fallback;
       } catch {
+        storageEnabled = false;
         return fallback;
+      }
+    }
+
+    function writeJson(key, value) {
+      try {
+        localStorage.setItem(key, JSON.stringify(value));
+        storageEnabled = true;
+        return true;
+      } catch {
+        storageEnabled = false;
+        return false;
       }
     }
 
@@ -1051,6 +1309,748 @@ document.addEventListener("DOMContentLoaded", () => {
 
     function safeAttr(value) {
       return safeCart(value);
+    }
+  }
+
+  function initCheckoutFinalizationPage() {
+    const cartList = document.getElementById("cart-items");
+    const totalElement = document.getElementById("order-total");
+    const submitButton = document.getElementById("submit-order");
+
+    if (!cartList || !totalElement || !submitButton) {
+      return;
+    }
+
+    const CART_STORAGE_KEY = "conference_cart_items_v1";
+    const CHECKOUT_STORAGE_KEY = "conference_checkout_submissions_v1";
+    const cartItems = readCheckoutJson(CART_STORAGE_KEY, []);
+    const savedSubmissions = readCheckoutJson(CHECKOUT_STORAGE_KEY, []);
+    const availableSessions = buildCheckoutSessions(cartItems);
+
+    ensureReactCheckoutLibraries()
+      .then(() => {
+        if (window.React && window.ReactDOM) {
+          mountReactCheckoutApp();
+          return;
+        }
+
+        renderCartItems();
+        mountFinalizationForm();
+      })
+      .catch(() => {
+        renderCartItems();
+        mountFinalizationForm();
+      });
+
+    function ensureReactCheckoutLibraries() {
+      if (window.React && window.ReactDOM) {
+        return Promise.resolve();
+      }
+
+      return loadScript("https://unpkg.com/react@18/umd/react.development.js").then(() =>
+        loadScript("https://unpkg.com/react-dom@18/umd/react-dom.development.js")
+      );
+    }
+
+    function loadScript(src) {
+      return new Promise((resolve, reject) => {
+        const existing = document.querySelector(`script[src="${src}"]`);
+        if (existing) {
+          if (existing.dataset.loaded === "true") {
+            resolve();
+            return;
+          }
+
+          existing.addEventListener("load", () => resolve(), { once: true });
+          existing.addEventListener("error", () => reject(new Error("Script failed to load")), {
+            once: true
+          });
+          return;
+        }
+
+        const script = document.createElement("script");
+        script.src = src;
+        script.async = true;
+        script.addEventListener("load", () => {
+          script.dataset.loaded = "true";
+          resolve();
+        });
+        script.addEventListener("error", () => reject(new Error("Script failed to load")));
+        document.head.appendChild(script);
+      });
+    }
+
+    function mountReactCheckoutApp() {
+      const ReactRef = window.React;
+      const ReactDOMRef = window.ReactDOM;
+      const e = ReactRef.createElement;
+      const card = submitButton.closest(".checkout-card");
+
+      if (!card || !ReactDOMRef || !ReactRef) {
+        renderCartItems();
+        mountFinalizationForm();
+        return;
+      }
+
+      card.innerHTML = "";
+
+      const root = ReactDOMRef.createRoot(card);
+
+      function CheckoutApp() {
+        const useMemo = ReactRef.useMemo;
+        const useState = ReactRef.useState;
+
+        const [formData, setFormData] = useState({
+          name: "",
+          email: "",
+          participationType: "",
+          publicationPreference: "",
+          notes: "",
+          confirmAttendance: false,
+          sessionPreferences: cartItems.length ? [cartItems[0].title || "Opening Keynote"] : []
+        });
+        const [errors, setErrors] = useState([]);
+        const [status, setStatus] = useState({
+          type: "info",
+          message: "Fill out the form, then submit to generate JSON and send it by AJAX."
+        });
+        const [payloadText, setPayloadText] = useState("");
+        const [submissionHistory, setSubmissionHistory] = useState(savedSubmissions);
+
+        const cartTotal = useMemo(() => {
+          return cartItems.reduce((sum, item) => sum + Number(item.price || 0), 0);
+        }, []);
+
+        function updateField(field, value) {
+          setFormData((current) => ({
+            ...current,
+            [field]: value
+          }));
+        }
+
+        function toggleSession(sessionTitle) {
+          setFormData((current) => {
+            const exists = current.sessionPreferences.includes(sessionTitle);
+            return {
+              ...current,
+              sessionPreferences: exists
+                ? current.sessionPreferences.filter((item) => item !== sessionTitle)
+                : current.sessionPreferences.concat(sessionTitle)
+            };
+          });
+        }
+
+        function handleSubmit(event) {
+          event.preventDefault();
+
+          const problems = validateCheckoutForm(formData);
+          setErrors(problems);
+
+          if (problems.length) {
+            setStatus({
+              type: "danger",
+              message: "Please correct the validation issues before submitting."
+            });
+            return;
+          }
+
+          const registrationPayload = {
+            attendee: {
+              name: formData.name,
+              email: formData.email
+            },
+            event: "XYZ Conference: Innovation and Excellence",
+            participationType: formData.participationType,
+            publicationPreference: formData.publicationPreference,
+            sessionPreferences: formData.sessionPreferences,
+            selectedCartItems: cartItems,
+            cartTotal,
+            notes: formData.notes,
+            confirmed: formData.confirmAttendance,
+            submittedAt: new Date().toISOString()
+          };
+
+          const payloadJson = JSON.stringify(registrationPayload, null, 2);
+          setPayloadText(payloadJson);
+
+          sendCheckoutAjax(registrationPayload)
+            .then((response) => {
+              const nextEntry = {
+                localId: "CHK-" + Date.now(),
+                registrationPayload,
+                responseId: response && response.id ? response.id : "created"
+              };
+              const nextHistory = submissionHistory.concat(nextEntry);
+              savedSubmissions.push(nextEntry);
+              localStorage.setItem(CHECKOUT_STORAGE_KEY, JSON.stringify(savedSubmissions));
+              setSubmissionHistory(nextHistory);
+              setStatus({
+                type: "success",
+                message: "Registration JSON was created and the React form completed its AJAX request."
+              });
+            })
+            .catch(() => {
+              const nextEntry = {
+                localId: "CHK-" + Date.now(),
+                registrationPayload,
+                responseId: "pending-api"
+              };
+              const nextHistory = submissionHistory.concat(nextEntry);
+              savedSubmissions.push(nextEntry);
+              localStorage.setItem(CHECKOUT_STORAGE_KEY, JSON.stringify(savedSubmissions));
+              setSubmissionHistory(nextHistory);
+              setStatus({
+                type: "secondary",
+                message: "React created the JSON payload and attempted an AJAX submission, but the API may be unavailable."
+              });
+            });
+        }
+
+        const cartMarkup = cartItems.length
+          ? cartItems.map((item, index) =>
+              e(
+                "li",
+                { className: "item", key: "cart-" + index },
+                e(
+                  "span",
+                  null,
+                  e("strong", null, item.title || "Conference Session"),
+                  e("br"),
+                  e("small", null, item.category || "General Admission")
+                ),
+                e("span", null, "$" + formatCheckoutPrice(item.price))
+              )
+            )
+          : [
+              e(
+                "li",
+                { className: "item", key: "empty" },
+                e("span", null, "No saved sessions were found in the shopping cart."),
+                e("span", null, "$0.00")
+              )
+            ];
+
+        const sessionCheckboxes = availableSessions.map((sessionTitle, index) =>
+          e(
+            "label",
+            { key: "session-" + index, style: { display: "block", marginBottom: "8px" } },
+            e("input", {
+              type: "checkbox",
+              checked: formData.sessionPreferences.includes(sessionTitle),
+              onChange: () => toggleSession(sessionTitle)
+            }),
+            " " + sessionTitle
+          )
+        );
+
+        const errorMarkup = errors.length
+          ? e(
+              "div",
+              { className: "alert alert-danger small" },
+              errors.map((message, index) => e("div", { key: "err-" + index }, message))
+            )
+          : null;
+
+        const historyMarkup = submissionHistory.length
+          ? e(
+              "div",
+              { className: "mt-3" },
+              e("h3", { className: "h5" }, "Saved Submission Attempts"),
+              e(
+                "ul",
+                { className: "list-group" },
+                submissionHistory
+                  .slice(-3)
+                  .reverse()
+                  .map((entry, index) =>
+                    e(
+                      "li",
+                      { className: "list-group-item", key: "history-" + index },
+                      e("strong", null, entry.localId),
+                      e(
+                        "div",
+                        { className: "small text-muted" },
+                        `${entry.registrationPayload.attendee.name} | ${entry.registrationPayload.participationType}`
+                      )
+                    )
+                  )
+              )
+            )
+          : null;
+
+        return e(
+          "div",
+          { className: "row g-4" },
+          e(
+            "div",
+            { className: "col-lg-5" },
+            e(
+              "section",
+              { className: "checkout-card h-100" },
+              e("h1", null, "Confirm Your Sessions"),
+              e("p", null, "Please review the items in your cart before finishing."),
+              e("ul", { className: "item-list" }, cartMarkup),
+              e(
+                "div",
+                { className: "total-row" },
+                e("span", null, "Total:"),
+                e("span", null, "$" + formatCheckoutPrice(cartTotal))
+              ),
+              e("hr", null),
+              e("h2", { className: "h5" }, "JSON Payload Preview"),
+              e(
+                "pre",
+                { className: "json-preview" },
+                payloadText || "Submit the form to generate a JSON document for the RESTful API."
+              )
+            )
+          ),
+          e(
+            "div",
+            { className: "col-lg-7" },
+            e(
+              "section",
+              { className: "checkout-card" },
+              e("h2", null, "Conference Finalization Form"),
+              e(
+                "p",
+                null,
+                "This page uses React to manage the form state, validation, JSON generation, and AJAX submission."
+              ),
+              e(
+                "form",
+                { onSubmit: handleSubmit },
+                e(
+                  "div",
+                  { className: "mb-3" },
+                  e("label", { className: "form-label", htmlFor: "finalName" }, "Full Name"),
+                  e("input", {
+                    id: "finalName",
+                    className: "form-control",
+                    value: formData.name,
+                    onChange: (event) => updateField("name", event.target.value)
+                  })
+                ),
+                e(
+                  "div",
+                  { className: "mb-3" },
+                  e("label", { className: "form-label", htmlFor: "finalEmail" }, "Email Address"),
+                  e("input", {
+                    id: "finalEmail",
+                    type: "email",
+                    className: "form-control",
+                    value: formData.email,
+                    onChange: (event) => updateField("email", event.target.value)
+                  })
+                ),
+                e(
+                  "div",
+                  { className: "mb-3" },
+                  e("label", { className: "form-label", htmlFor: "finalParticipation" }, "Participation Type"),
+                  e(
+                    "select",
+                    {
+                      id: "finalParticipation",
+                      className: "form-control",
+                      value: formData.participationType,
+                      onChange: (event) => updateField("participationType", event.target.value)
+                    },
+                    e("option", { value: "" }, "Select an option"),
+                    e("option", { value: "In-Person" }, "In-Person"),
+                    e("option", { value: "Virtual" }, "Virtual"),
+                    e("option", { value: "VIP" }, "VIP")
+                  )
+                ),
+                e(
+                  "div",
+                  { className: "mb-3" },
+                  e("label", { className: "form-label" }, "Session Preferences"),
+                  sessionCheckboxes
+                ),
+                e(
+                  "div",
+                  { className: "mb-3" },
+                  e("label", { className: "form-label", htmlFor: "finalPublication" }, "Publication Preference"),
+                  e(
+                    "select",
+                    {
+                      id: "finalPublication",
+                      className: "form-control",
+                      value: formData.publicationPreference,
+                      onChange: (event) => updateField("publicationPreference", event.target.value)
+                    },
+                    e("option", { value: "" }, "Select a preference"),
+                    e("option", { value: "Public attendee list" }, "Public attendee list"),
+                    e("option", { value: "Private attendee list" }, "Private attendee list"),
+                    e("option", { value: "Email updates only" }, "Email updates only")
+                  )
+                ),
+                e(
+                  "div",
+                  { className: "mb-3" },
+                  e("label", { className: "form-label", htmlFor: "finalNotes" }, "RSVP Notes"),
+                  e("textarea", {
+                    id: "finalNotes",
+                    className: "form-control",
+                    rows: 4,
+                    value: formData.notes,
+                    onChange: (event) => updateField("notes", event.target.value)
+                  })
+                ),
+                e(
+                  "div",
+                  { className: "form-check mb-3" },
+                  e("input", {
+                    id: "finalConfirm",
+                    type: "checkbox",
+                    className: "form-check-input",
+                    checked: formData.confirmAttendance,
+                    onChange: (event) => updateField("confirmAttendance", event.target.checked)
+                  }),
+                  e(
+                    "label",
+                    { className: "form-check-label", htmlFor: "finalConfirm" },
+                    "I confirm that my registration information is correct."
+                  )
+                ),
+                errorMarkup,
+                e(
+                  "div",
+                  { className: `alert alert-${status.type} small` },
+                  status.message
+                ),
+                e(
+                  "button",
+                  { type: "submit", className: "confirm-btn" },
+                  "Submit Registration"
+                )
+              ),
+              historyMarkup
+            )
+          )
+        );
+      }
+
+      root.render(e(CheckoutApp));
+    }
+
+    function renderCartItems() {
+      cartList.innerHTML = "";
+
+      if (!cartItems.length) {
+        cartList.innerHTML = `
+          <li class="item">
+            <span>No saved sessions were found in the shopping cart.</span>
+            <span>$0.00</span>
+          </li>
+        `;
+        totalElement.textContent = "$0.00";
+        return;
+      }
+
+      let total = 0;
+
+      cartItems.forEach((item) => {
+        total += Number(item.price || 0);
+
+        const li = document.createElement("li");
+        li.className = "item";
+        li.innerHTML = `
+          <span>
+            <strong>${safeCheckout(item.title || "Conference Session")}</strong><br>
+            <small>${safeCheckout(item.category || "General Admission")}</small>
+          </span>
+          <span>$${formatCheckoutPrice(item.price)}</span>
+        `;
+        cartList.appendChild(li);
+      });
+
+      totalElement.textContent = "$" + formatCheckoutPrice(total);
+    }
+
+    function mountFinalizationForm() {
+      submitButton.textContent = "Submit Registration";
+      submitButton.type = "button";
+
+      const section = document.createElement("section");
+      section.className = "mt-4";
+      section.innerHTML = `
+        <hr>
+        <h2>Conference Finalization Form</h2>
+        <p>Complete your attendance details, choose your participation type, and prepare the registration JSON document for a RESTful API.</p>
+        <form id="checkoutFinalForm" novalidate>
+          <div style="margin-bottom: 12px;">
+            <label for="finalName"><strong>Full Name</strong></label>
+            <input id="finalName" name="name" type="text" class="form-control" placeholder="Jordan Lee">
+          </div>
+          <div style="margin-bottom: 12px;">
+            <label for="finalEmail"><strong>Email Address</strong></label>
+            <input id="finalEmail" name="email" type="email" class="form-control" placeholder="jordan@example.com">
+          </div>
+          <div style="margin-bottom: 12px;">
+            <label for="finalParticipation"><strong>Participation Type</strong></label>
+            <select id="finalParticipation" name="participationType" class="form-control">
+              <option value="">Select an option</option>
+              <option value="In-Person">In-Person</option>
+              <option value="Virtual">Virtual</option>
+              <option value="VIP">VIP</option>
+            </select>
+          </div>
+          <div style="margin-bottom: 12px;">
+            <label><strong>Session Preferences</strong></label>
+            <div id="sessionPreferenceList"></div>
+          </div>
+          <div style="margin-bottom: 12px;">
+            <label for="finalPublication"><strong>Publication Preference</strong></label>
+            <select id="finalPublication" name="publicationPreference" class="form-control">
+              <option value="">Select a preference</option>
+              <option value="Public attendee list">Public attendee list</option>
+              <option value="Private attendee list">Private attendee list</option>
+              <option value="Email updates only">Email updates only</option>
+            </select>
+          </div>
+          <div style="margin-bottom: 12px;">
+            <label for="finalNotes"><strong>RSVP Notes</strong></label>
+            <textarea id="finalNotes" name="notes" rows="4" class="form-control" placeholder="Add arrival notes, accessibility requests, or preferred contact details."></textarea>
+          </div>
+          <div style="margin-bottom: 12px;">
+            <label>
+              <input id="finalConfirm" name="confirmAttendance" type="checkbox">
+              I confirm that my registration information is correct.
+            </label>
+          </div>
+        </form>
+        <div id="checkoutErrors" class="alert alert-danger small d-none"></div>
+        <div id="checkoutStatus" class="alert alert-info small mt-3">Fill out the form, then submit to generate JSON and send it by AJAX.</div>
+        <div id="checkoutPayloadWrap" class="mt-3">
+          <h3>JSON Payload</h3>
+          <textarea id="checkoutPayload" class="form-control" rows="14" readonly></textarea>
+        </div>
+        <div id="checkoutHistory" class="mt-3"></div>
+      `;
+
+      submitButton.insertAdjacentElement("afterend", section);
+
+      const form = document.getElementById("checkoutFinalForm");
+      const errors = document.getElementById("checkoutErrors");
+      const status = document.getElementById("checkoutStatus");
+      const payload = document.getElementById("checkoutPayload");
+      const sessionWrap = document.getElementById("sessionPreferenceList");
+      const history = document.getElementById("checkoutHistory");
+
+      sessionWrap.innerHTML = availableSessions
+        .map((session, index) => {
+          return `
+            <label style="display:block; margin-bottom: 8px;">
+              <input type="checkbox" name="sessionPreference" value="${safeAttr(session)}" data-session-index="${index}">
+              ${safeCheckout(session)}
+            </label>
+          `;
+        })
+        .join("");
+
+      renderSubmissionHistory();
+
+      submitButton.addEventListener("click", submitRegistration);
+      form.addEventListener("submit", (e) => {
+        e.preventDefault();
+        submitRegistration();
+      });
+
+      function submitRegistration() {
+        const formData = {
+          name: form.elements.name.value.trim(),
+          email: form.elements.email.value.trim(),
+          participationType: form.elements.participationType.value,
+          publicationPreference: form.elements.publicationPreference.value,
+          notes: form.elements.notes.value.trim(),
+          confirmAttendance: form.elements.confirmAttendance.checked,
+          sessionPreferences: Array.from(
+            form.querySelectorAll("input[name='sessionPreference']:checked")
+          ).map((input) => input.value)
+        };
+
+        const problems = validateCheckoutForm(formData);
+        if (problems.length) {
+          errors.classList.remove("d-none");
+          errors.innerHTML = problems.map((problem) => `<div>${safeCheckout(problem)}</div>`).join("");
+          status.className = "alert alert-danger small mt-3";
+          status.textContent = "Please correct the validation issues before submitting.";
+          return;
+        }
+
+        errors.classList.add("d-none");
+        errors.innerHTML = "";
+
+        const registrationPayload = {
+          attendee: {
+            name: formData.name,
+            email: formData.email
+          },
+          event: "XYZ Conference: Innovation and Excellence",
+          participationType: formData.participationType,
+          publicationPreference: formData.publicationPreference,
+          sessionPreferences: formData.sessionPreferences,
+          selectedCartItems: cartItems,
+          cartTotal: Number(totalElement.textContent.replace(/[^0-9.]/g, "") || 0),
+          notes: formData.notes,
+          confirmed: formData.confirmAttendance,
+          submittedAt: new Date().toISOString()
+        };
+
+        payload.value = JSON.stringify(registrationPayload, null, 2);
+
+        sendCheckoutAjax(registrationPayload)
+          .then((response) => {
+            savedSubmissions.push({
+              localId: "CHK-" + Date.now(),
+              registrationPayload,
+              responseId: response && response.id ? response.id : "created"
+            });
+            localStorage.setItem(CHECKOUT_STORAGE_KEY, JSON.stringify(savedSubmissions));
+            renderSubmissionHistory();
+
+            status.className = "alert alert-success small mt-3";
+            status.textContent = "Registration JSON was created and the AJAX request completed successfully.";
+          })
+          .catch(() => {
+            savedSubmissions.push({
+              localId: "CHK-" + Date.now(),
+              registrationPayload,
+              responseId: "pending-api"
+            });
+            localStorage.setItem(CHECKOUT_STORAGE_KEY, JSON.stringify(savedSubmissions));
+            renderSubmissionHistory();
+
+            status.className = "alert alert-secondary small mt-3";
+            status.textContent = "JSON was prepared and an AJAX submission was attempted. The API may be unavailable in the local environment, but the payload is ready for transport.";
+          });
+      }
+
+      function renderSubmissionHistory() {
+        if (!savedSubmissions.length) {
+          history.innerHTML = "";
+          return;
+        }
+
+        history.innerHTML = `
+          <h3>Saved Submission Attempts</h3>
+          <ul class="list-group">
+            ${savedSubmissions
+              .slice(-3)
+              .reverse()
+              .map((entry) => {
+                return `
+                  <li class="list-group-item">
+                    <strong>${safeCheckout(entry.localId)}</strong>
+                    <div class="small text-muted">${safeCheckout(entry.registrationPayload.attendee.name)} | ${safeCheckout(entry.registrationPayload.participationType)}</div>
+                  </li>
+                `;
+              })
+              .join("")}
+          </ul>
+        `;
+      }
+    }
+
+    function validateCheckoutForm(data) {
+      const messages = [];
+      const validEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(data.email);
+
+      if (!data.name || data.name.length < 2) {
+        messages.push("Enter a full name with at least 2 characters.");
+      }
+
+      if (!data.email || !validEmail) {
+        messages.push("Enter a valid email address.");
+      }
+
+      if (!data.participationType) {
+        messages.push("Choose a participation type.");
+      }
+
+      if (!data.publicationPreference) {
+        messages.push("Select a publication preference.");
+      }
+
+      if (!data.sessionPreferences.length) {
+        messages.push("Select at least one session preference.");
+      }
+
+      if (!data.confirmAttendance) {
+        messages.push("Confirm that the attendance information is correct.");
+      }
+
+      return messages;
+    }
+
+    function sendCheckoutAjax(registrationPayload) {
+      if (window.jQuery && window.jQuery.ajax) {
+        return new Promise((resolve, reject) => {
+          window.jQuery.ajax({
+            url: "https://jsonplaceholder.typicode.com/posts",
+            method: "POST",
+            contentType: "application/json; charset=UTF-8",
+            dataType: "json",
+            data: JSON.stringify(registrationPayload),
+            timeout: 5000
+          })
+            .done(resolve)
+            .fail(reject);
+        });
+      }
+
+      return fetch("https://jsonplaceholder.typicode.com/posts", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify(registrationPayload)
+      }).then((response) => {
+        if (!response.ok) {
+          throw new Error("Request failed");
+        }
+        return response.json();
+      });
+    }
+
+    function buildCheckoutSessions(items) {
+      const defaults = [
+        "Opening Keynote",
+        "AI in Higher Education",
+        "Leadership Roundtable",
+        "Networking Mixer"
+      ];
+
+      const cartTitles = items.map((item) => String(item.title || "").trim()).filter(Boolean);
+      return [...new Set([...cartTitles, ...defaults])];
+    }
+
+    function readCheckoutJson(key, fallback) {
+      try {
+        const raw = localStorage.getItem(key);
+        const parsed = raw ? JSON.parse(raw) : fallback;
+        return Array.isArray(fallback) ? (Array.isArray(parsed) ? parsed : fallback) : parsed;
+      } catch {
+        return fallback;
+      }
+    }
+
+    function formatCheckoutPrice(value) {
+      return Number(value || 0).toFixed(2);
+    }
+
+    function safeCheckout(value) {
+      return String(value)
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#39;");
+    }
+
+    function safeAttr(value) {
+      return safeCheckout(value);
     }
   }
 });
