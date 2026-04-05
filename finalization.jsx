@@ -1,61 +1,72 @@
-import { useState, useEffect } from "react";
+const { useEffect, useState } = React;
 
-export default function FinalizationPage() {
+function FinalizationPage() {
   const [sessions, setSessions] = useState([]);
   const [cart, setCart] = useState([]);
-
   const [form, setForm] = useState({
     name: "",
     email: "",
     participation: "",
     selectedSessions: []
   });
-
   const [errors, setErrors] = useState({});
   const [jsonOutput, setJsonOutput] = useState(null);
   const [status, setStatus] = useState("");
 
-  // Load sessions + cart from localStorage
   useEffect(() => {
-    const storedSessions = JSON.parse(localStorage.getItem("conference_sessions_v1")) || [];
-    const storedCart = JSON.parse(localStorage.getItem("conference_cart_items_v1")) || [];
+    let storedSessions = [];
+    let storedCart = [];
+
+    try {
+      storedSessions = JSON.parse(localStorage.getItem("conference_sessions_v1")) || [];
+    } catch {
+      storedSessions = [];
+    }
+
+    try {
+      storedCart = JSON.parse(localStorage.getItem("conference_cart_items_v1")) || [];
+    } catch {
+      storedCart = [];
+    }
 
     setSessions(storedSessions);
     setCart(storedCart);
 
-    // Pre-select sessions already in cart
-    const cartSessionIds = storedCart.map(item => item.id);
-    setForm(prev => ({ ...prev, selectedSessions: cartSessionIds }));
+    const cartSessionIds = storedCart.map((item) => item.id);
+    setForm((prev) => ({ ...prev, selectedSessions: cartSessionIds }));
   }, []);
 
-  function handleChange(e) {
-    setForm({ ...form, [e.target.name]: e.target.value });
+  function handleChange(event) {
+    const { name, value } = event.target;
+    setForm((prev) => ({ ...prev, [name]: value }));
   }
 
   function toggleSession(id) {
-    setForm(prev => {
+    setForm((prev) => {
       const selected = prev.selectedSessions.includes(id)
-        ? prev.selectedSessions.filter(s => s !== id)
+        ? prev.selectedSessions.filter((sessionId) => sessionId !== id)
         : [...prev.selectedSessions, id];
+
       return { ...prev, selectedSessions: selected };
     });
   }
 
   function validate() {
-    const e = {};
+    const nextErrors = {};
 
-    if (!form.name.trim()) e.name = "Name is required.";
-    if (!form.email.trim()) e.email = "Email is required.";
-    if (!form.participation) e.participation = "Select a participation type.";
-    if (form.selectedSessions.length === 0)
-      e.selectedSessions = "Select at least one session.";
+    if (!form.name.trim()) nextErrors.name = "Name is required.";
+    if (!form.email.trim()) nextErrors.email = "Email is required.";
+    if (!form.participation) nextErrors.participation = "Select a participation type.";
+    if (form.selectedSessions.length === 0) {
+      nextErrors.selectedSessions = "Select at least one session.";
+    }
 
-    setErrors(e);
-    return Object.keys(e).length === 0;
+    setErrors(nextErrors);
+    return Object.keys(nextErrors).length === 0;
   }
 
-  async function handleSubmit(e) {
-    e.preventDefault();
+  async function handleSubmit(event) {
+    event.preventDefault();
     if (!validate()) return;
 
     const payload = {
@@ -63,7 +74,7 @@ export default function FinalizationPage() {
       email: form.email.trim(),
       participation: form.participation,
       sessions: form.selectedSessions,
-      cartSummary: cart.map(item => ({
+      cartSummary: cart.map((item) => ({
         id: item.id,
         title: item.title,
         price: item.price
@@ -73,106 +84,105 @@ export default function FinalizationPage() {
     setJsonOutput(payload);
 
     try {
-      const response = await fetch("/api/finalize-registration", {
+      const response = await fetch("https://jsonplaceholder.typicode.com/posts", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload)
       });
 
-      if (!response.ok) throw new Error("Network error");
+      if (!response.ok) {
+        throw new Error("Network error");
+      }
 
-      setStatus("Registration submitted successfully!");
-    } catch (err) {
-      setStatus("Error submitting registration.");
+      setStatus("Registration submitted successfully.");
+    } catch {
+      setStatus("JSON was generated and an AJAX request was attempted.");
     }
   }
 
   return (
     <div className="container py-4">
-      <h2 className="mb-4">Conference Registration Finalization</h2>
+      <div className="card p-4 shadow-sm">
+        <h2 className="mb-3">Conference Registration Finalization</h2>
+        <p className="text-muted">
+          This React component is loaded directly in the browser from <code>finalization.jsx</code>.
+        </p>
 
-      <form onSubmit={handleSubmit} className="card p-4 shadow-sm">
-
-        {/* Name */}
-        <div className="mb-3">
-          <label className="form-label">Full Name</label>
-          <input
-            name="name"
-            className={`form-control ${errors.name ? "is-invalid" : ""}`}
-            value={form.name}
-            onChange={handleChange}
-          />
-          {errors.name && <div className="invalid-feedback">{errors.name}</div>}
-        </div>
-
-        {/* Email */}
-        <div className="mb-3">
-          <label className="form-label">Email Address</label>
-          <input
-            name="email"
-            type="email"
-            className={`form-control ${errors.email ? "is-invalid" : ""}`}
-            value={form.email}
-            onChange={handleChange}
-          />
-          {errors.email && <div className="invalid-feedback">{errors.email}</div>}
-        </div>
-
-        {/* Participation Type */}
-        <div className="mb-3">
-          <label className="form-label">Participation Type</label>
-          <select
-            name="participation"
-            className={`form-select ${errors.participation ? "is-invalid" : ""}`}
-            value={form.participation}
-            onChange={handleChange}
-          >
-            <option value="">Select one...</option>
-            <option value="in-person">In-Person</option>
-            <option value="virtual">Virtual</option>
-            <option value="vip">VIP</option>
-          </select>
-          {errors.participation && (
-            <div className="invalid-feedback">{errors.participation}</div>
-          )}
-        </div>
-
-        {/* Session Selection */}
-        <div className="mb-3">
-          <label className="form-label">Select Sessions</label>
-          <div className="border rounded p-3">
-            {sessions.length === 0 && (
-              <p className="text-muted">No sessions available.</p>
-            )}
-
-            {sessions.map(session => (
-              <div key={session.id} className="form-check">
-                <input
-                  type="checkbox"
-                  className="form-check-input"
-                  id={session.id}
-                  checked={form.selectedSessions.includes(session.id)}
-                  onChange={() => toggleSession(session.id)}
-                />
-                <label className="form-check-label" htmlFor={session.id}>
-                  {session.title} — {session.category}
-                </label>
-              </div>
-            ))}
+        <form onSubmit={handleSubmit}>
+          <div className="mb-3">
+            <label className="form-label">Full Name</label>
+            <input
+              name="name"
+              className={`form-control ${errors.name ? "is-invalid" : ""}`}
+              value={form.name}
+              onChange={handleChange}
+            />
+            {errors.name && <div className="invalid-feedback">{errors.name}</div>}
           </div>
 
-          {errors.selectedSessions && (
-            <div className="text-danger small mt-1">{errors.selectedSessions}</div>
-          )}
-        </div>
+          <div className="mb-3">
+            <label className="form-label">Email Address</label>
+            <input
+              name="email"
+              type="email"
+              className={`form-control ${errors.email ? "is-invalid" : ""}`}
+              value={form.email}
+              onChange={handleChange}
+            />
+            {errors.email && <div className="invalid-feedback">{errors.email}</div>}
+          </div>
 
-        <button className="btn btn-primary">Submit Registration</button>
-      </form>
+          <div className="mb-3">
+            <label className="form-label">Participation Type</label>
+            <select
+              name="participation"
+              className={`form-select ${errors.participation ? "is-invalid" : ""}`}
+              value={form.participation}
+              onChange={handleChange}
+            >
+              <option value="">Select one...</option>
+              <option value="in-person">In-Person</option>
+              <option value="virtual">Virtual</option>
+              <option value="vip">VIP</option>
+            </select>
+            {errors.participation && (
+              <div className="invalid-feedback">{errors.participation}</div>
+            )}
+          </div>
 
-      {/* Status Message */}
-      {status && <div className="alert alert-info mt-3">{status}</div>}
+          <div className="mb-3">
+            <label className="form-label">Select Sessions</label>
+            <div className="border rounded p-3">
+              {sessions.length === 0 && (
+                <p className="text-muted mb-0">No sessions available.</p>
+              )}
 
-      {/* JSON Output */}
+              {sessions.map((session) => (
+                <div key={session.id} className="form-check">
+                  <input
+                    type="checkbox"
+                    className="form-check-input"
+                    id={`session-${session.id}`}
+                    checked={form.selectedSessions.includes(session.id)}
+                    onChange={() => toggleSession(session.id)}
+                  />
+                  <label className="form-check-label" htmlFor={`session-${session.id}`}>
+                    {session.title} - {session.category}
+                  </label>
+                </div>
+              ))}
+            </div>
+            {errors.selectedSessions && (
+              <div className="text-danger small mt-1">{errors.selectedSessions}</div>
+            )}
+          </div>
+
+          <button type="submit" className="btn btn-primary">Submit Registration</button>
+        </form>
+
+        {status && <div className="alert alert-info mt-3 mb-0">{status}</div>}
+      </div>
+
       {jsonOutput && (
         <div className="mt-4">
           <h5>Generated JSON</h5>
@@ -183,4 +193,10 @@ export default function FinalizationPage() {
       )}
     </div>
   );
+}
+
+const finalizationRoot = document.getElementById("finalization-root");
+
+if (finalizationRoot) {
+  ReactDOM.createRoot(finalizationRoot).render(<FinalizationPage />);
 }
