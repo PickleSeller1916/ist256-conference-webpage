@@ -19,35 +19,45 @@ function FinalizationPage() {
 
     try {
       storedSessions = JSON.parse(localStorage.getItem("conference_sessions_v1")) || [];
-    } catch {
+    } catch (error) {
       storedSessions = [];
     }
 
     try {
       storedCart = JSON.parse(localStorage.getItem("conference_cart_items_v1")) || [];
-    } catch {
+    } catch (error) {
       storedCart = [];
     }
 
+    storedSessions = Array.isArray(storedSessions) ? storedSessions : [];
+    storedCart = Array.isArray(storedCart) ? storedCart : [];
+
     setSessions(storedSessions);
     setCart(storedCart);
-
-    const cartSessionIds = storedCart.map((item) => item.id);
-    setForm((prev) => ({ ...prev, selectedSessions: cartSessionIds }));
+    setForm((prev) => ({
+      ...prev,
+      selectedSessions: storedCart.map((item) => item.id)
+    }));
   }, []);
 
   function handleChange(event) {
     const { name, value } = event.target;
-    setForm((prev) => ({ ...prev, [name]: value }));
+    setForm((prev) => ({
+      ...prev,
+      [name]: value
+    }));
   }
 
   function toggleSession(id) {
     setForm((prev) => {
-      const selected = prev.selectedSessions.includes(id)
+      const nextSelected = prev.selectedSessions.includes(id)
         ? prev.selectedSessions.filter((sessionId) => sessionId !== id)
         : [...prev.selectedSessions, id];
 
-      return { ...prev, selectedSessions: selected };
+      return {
+        ...prev,
+        selectedSessions: nextSelected
+      };
     });
   }
 
@@ -57,7 +67,7 @@ function FinalizationPage() {
     if (!form.name.trim()) nextErrors.name = "Name is required.";
     if (!form.email.trim()) nextErrors.email = "Email is required.";
     if (!form.participation) nextErrors.participation = "Select a participation type.";
-    if (form.selectedSessions.length === 0) {
+    if (!form.selectedSessions.length) {
       nextErrors.selectedSessions = "Select at least one session.";
     }
 
@@ -95,7 +105,7 @@ function FinalizationPage() {
       }
 
       setStatus("Registration submitted successfully.");
-    } catch {
+    } catch (error) {
       setStatus("JSON was generated and an AJAX request was attempted.");
     }
   }
@@ -105,7 +115,7 @@ function FinalizationPage() {
       <div className="card p-4 shadow-sm">
         <h2 className="mb-3">Conference Registration Finalization</h2>
         <p className="text-muted">
-          This React component is loaded directly in the browser from <code>finalization.jsx</code>.
+          This React finalization component is loaded from <code>finalization.jsx</code>.
         </p>
 
         <form onSubmit={handleSubmit}>
