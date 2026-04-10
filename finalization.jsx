@@ -1,4 +1,9 @@
-const { useEffect, useState } = React;
+const { useEffect, useMemo, useState } = React;
+
+const API_BASE =
+  window.location.protocol === "http:" || window.location.protocol === "https:"
+    ? ""
+    : "http://localhost:3000";
 
 function FinalizationPage() {
   const [cart, setCart] = useState([]);
@@ -9,8 +14,9 @@ function FinalizationPage() {
     selectedProducts: []
   });
   const [errors, setErrors] = useState({});
-  const [jsonOutput, setJsonOutput] = useState(null);
-  const [status, setStatus] = useState("");
+  const [serverOrder, setServerOrder] = useState(null);
+  const [status, setStatus] = useState({ type: "", message: "" });
+  const [submitting, setSubmitting] = useState(false);
 
   function loadSavedCart() {
     let storedCart = [];
@@ -25,12 +31,27 @@ function FinalizationPage() {
     setCart(storedCart);
     setForm((prev) => ({
       ...prev,
-      selectedProducts: storedCart.map((item) => item.id)
+      selectedProducts: storedCart.map(getCartItemKey)
     }));
   }
 
   useEffect(() => {
     loadSavedCart();
+
+    const savedFinalization = localStorage.getItem("conference_finalization_v1");
+    if (savedFinalization) {
+      try {
+        const parsed = JSON.parse(savedFinalization);
+        setForm((prev) => ({
+          ...prev,
+          name: parsed.customerName || "",
+          email: parsed.customerEmail || "",
+          participation: parsed.participation || ""
+        }));
+      } catch (error) {
+        // Ignore invalid local storage values.
+      }
+    }
 
     function syncCart() {
       loadSavedCart();
@@ -45,6 +66,16 @@ function FinalizationPage() {
     };
   }, []);
 
+  const selectedCartItems = useMemo(() => {
+    return cart.filter((item) => form.selectedProducts.includes(getCartItemKey(item)));
+  }, [cart, form.selectedProducts]);
+
+  const totalAmount = useMemo(() => {
+    return selectedCartItems
+      .reduce((sum, item) => sum + Number(item.price || 0), 0)
+      .toFixed(2);
+  }, [selectedCartItems]);
+
   function handleChange(event) {
     const { name, value } = event.target;
     setForm((prev) => ({
@@ -53,11 +84,11 @@ function FinalizationPage() {
     }));
   }
 
-  function toggleProduct(id) {
+  function toggleProduct(itemKey) {
     setForm((prev) => {
-      const nextSelected = prev.selectedProducts.includes(id)
-        ? prev.selectedProducts.filter((itemId) => itemId !== id)
-        : [...prev.selectedProducts, id];
+      const nextSelected = prev.selectedProducts.includes(itemKey)
+        ? prev.selectedProducts.filter((selectedKey) => selectedKey !== itemKey)
+        : [...prev.selectedProducts, itemKey];
 
       return {
         ...prev,
@@ -66,15 +97,15 @@ function FinalizationPage() {
     });
   }
 
-  function removeProduct(productId) {
-    const nextCart = cart.filter((item) => item.id !== productId);
+  function removeProduct(itemKey) {
+    const nextCart = cart.filter((item) => getCartItemKey(item) !== itemKey);
     setCart(nextCart);
     setForm((prev) => ({
       ...prev,
-      selectedProducts: prev.selectedProducts.filter((itemId) => itemId !== productId)
+      selectedProducts: prev.selectedProducts.filter((selectedKey) => selectedKey !== itemKey)
     }));
     localStorage.setItem("conference_cart_items_v1", JSON.stringify(nextCart));
-    setStatus("Checkout item removed from the shopping cart.");
+    setStatus({ type: "warning", message: "Checkout item removed from the shopping cart." });
   }
 
   function validate() {
@@ -99,53 +130,78 @@ function FinalizationPage() {
       customerName: form.name.trim(),
       customerEmail: form.email.trim(),
       participation: form.participation,
-      selectedProducts: cart
-        .filter((item) => form.selectedProducts.includes(item.id))
-        .map((item) => ({
-          productId: item.id,
-          productTitle: item.title,
-          productCategory: item.category,
-          duration: item.duration,
-          speaker: item.speaker,
-          price: item.price,
-          addedAt: item.addedAt
-        })),
+      selectedProducts: selectedCartItems.map((item) => ({
+        productId: item.id,
+        productTitle: item.title,
+        productCategory: item.category,
+        duration: item.duration,
+        speaker: item.speaker,
+        price: Number(item.price || 0),
+        addedAt: item.addedAt
+      })),
       cartSummary: {
-        itemCount: form.selectedProducts.length,
-        total: cart
-          .filter((item) => form.selectedProducts.includes(item.id))
-          .reduce((sum, item) => sum + Number(item.price || 0), 0)
-          .toFixed(2)
+        itemCount: selectedCartItems.length,
+        total: totalAmount
       }
     };
 
-    setJsonOutput(payload);
+    setSubmitting(true);
+    setServerOrder(null);
     localStorage.setItem("conference_finalization_v1", JSON.stringify(payload));
 
     try {
-      const response = await fetch("https://jsonplaceholder.typicode.com/posts", {
+      const response = await fetch(`${API_BASE}/api/orders`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload)
       });
 
+      const data = await response.json();
+
       if (!response.ok) {
-        throw new Error("Network error");
+        throw new Error(data.message || "Unable to submit the checkout.");
       }
 
-      setStatus("Checkout submitted successfully.");
+      setServerOrder(data);
+      setStatus({
+        type: "success",
+        message: `Checkout submitted successfully. Order ${data.id} is now pending admin approval.`
+      });
     } catch (error) {
-      setStatus("Checkout JSON was generated and an AJAX request was attempted.");
+      setStatus({
+        type: "danger",
+        message:
+          error.message ||
+          "Unable to reach the Node.js backend. Start server.js and try again."
+      });
+    } finally {
+      setSubmitting(false);
     }
   }
 
   return (
     <div className="container py-4">
-      <div className="card p-4 shadow-sm">
-        <h2 className="mb-3">Conference Checkout Finalization</h2>
-        <p className="text-muted">
-          This page uses only your saved shopping cart data to build the final checkout.
-        </p>
+      <div className="card p-4 shadow-sm border-0">
+        <div className="d-flex flex-wrap justify-content-between align-items-start gap-3 mb-3">
+          <div>
+            <h2 className="mb-2">Conference Checkout Finalization</h2>
+            <p className="text-muted mb-0">
+              Submit your conference registration to the Node.js backend so it can appear in order history and the admin approval dashboard.
+            </p>
+          </div>
+          <div className="d-flex gap-2">
+            <a href="order-history.html" className="btn btn-outline-primary btn-sm">
+              View Order History
+            </a>
+            <a href="approval.html" className="btn btn-outline-dark btn-sm">
+              Admin Approval Page
+            </a>
+          </div>
+        </div>
+
+        <div className="alert alert-info">
+          Run <code>node server.js</code> and open <code>http://localhost:3000/checkout.html</code> for the full integrated frontend/backend flow.
+        </div>
 
         <div className="d-flex gap-2 mb-3">
           <button
@@ -157,126 +213,138 @@ function FinalizationPage() {
           </button>
         </div>
 
-        <div className="mb-3">
+        <div className="mb-4">
           <h5>Shopping Cart Summary</h5>
           {cart.length === 0 ? (
             <p className="text-muted mb-0">No saved shopping cart items were found yet.</p>
           ) : (
             <ul className="list-group">
-              {cart.map((item) => (
-                <li key={item.id} className="list-group-item d-flex justify-content-between align-items-start gap-3">
-                  <span>
-                    <strong>{item.title}</strong>
-                    <span className="text-muted"> - {item.category}</span>
-                    <span className="d-block small text-muted">
-                      Duration: {item.duration || "N/A"} | Speaker: {item.speaker || "N/A"}
-                    </span>
-                  </span>
-                  <div className="text-end">
-                    <div className="mb-2">${item.price}</div>
-                    <button
-                      type="button"
-                      className="btn btn-sm btn-outline-danger"
-                      onClick={() => removeProduct(item.id)}
-                    >
-                      Remove
-                    </button>
-                  </div>
-                </li>
-              ))}
+              {cart.map((item) => {
+                const itemKey = getCartItemKey(item);
+                const checked = form.selectedProducts.includes(itemKey);
+
+                return (
+                  <li
+                    key={itemKey}
+                    className="list-group-item d-flex justify-content-between align-items-start gap-3"
+                  >
+                    <div className="form-check">
+                      <input
+                        id={`select-${itemKey}`}
+                        type="checkbox"
+                        className="form-check-input"
+                        checked={checked}
+                        onChange={() => toggleProduct(itemKey)}
+                      />
+                      <label htmlFor={`select-${itemKey}`} className="form-check-label">
+                        <strong>{item.title}</strong>
+                        <span className="text-muted"> - {item.category}</span>
+                        <span className="d-block small text-muted">
+                          Duration: {item.duration || "N/A"} | Speaker: {item.speaker || "N/A"}
+                        </span>
+                      </label>
+                    </div>
+                    <div className="text-end">
+                      <div className="mb-2">${Number(item.price || 0).toFixed(2)}</div>
+                      <button
+                        type="button"
+                        className="btn btn-sm btn-outline-danger"
+                        onClick={() => removeProduct(itemKey)}
+                      >
+                        Remove
+                      </button>
+                    </div>
+                  </li>
+                );
+              })}
             </ul>
+          )}
+          {errors.selectedProducts && (
+            <div className="text-danger small mt-2">{errors.selectedProducts}</div>
           )}
         </div>
 
         <form onSubmit={handleSubmit}>
-          <div className="mb-3">
-            <label className="form-label">Full Name</label>
-            <input
-              name="name"
-              className={`form-control ${errors.name ? "is-invalid" : ""}`}
-              value={form.name}
-              onChange={handleChange}
-            />
-            {errors.name && <div className="invalid-feedback">{errors.name}</div>}
-          </div>
-
-          <div className="mb-3">
-            <label className="form-label">Email Address</label>
-            <input
-              name="email"
-              type="email"
-              className={`form-control ${errors.email ? "is-invalid" : ""}`}
-              value={form.email}
-              onChange={handleChange}
-            />
-            {errors.email && <div className="invalid-feedback">{errors.email}</div>}
-          </div>
-
-          <div className="mb-3">
-            <label className="form-label">Participation Type</label>
-            <select
-              name="participation"
-              className={`form-select ${errors.participation ? "is-invalid" : ""}`}
-              value={form.participation}
-              onChange={handleChange}
-            >
-              <option value="">Select one...</option>
-              <option value="in-person">In-Person</option>
-              <option value="virtual">Virtual</option>
-              <option value="vip">VIP</option>
-            </select>
-            {errors.participation && (
-              <div className="invalid-feedback">{errors.participation}</div>
-            )}
-          </div>
-
-          <div className="mb-3">
-            <label className="form-label">Select Shopping Cart Items</label>
-            <div className="border rounded p-3">
-              {cart.length === 0 && (
-                <p className="text-muted mb-0">No saved shopping cart items are available.</p>
-              )}
-
-              {cart.map((item) => (
-                <div key={item.id} className="form-check">
-                  <input
-                    type="checkbox"
-                    className="form-check-input"
-                    id={`cart-item-${item.id}`}
-                    checked={form.selectedProducts.includes(item.id)}
-                    onChange={() => toggleProduct(item.id)}
-                  />
-                  <label className="form-check-label" htmlFor={`cart-item-${item.id}`}>
-                    {item.title} - {item.category} - ${item.price}
-                  </label>
-                </div>
-              ))}
+          <div className="row g-3">
+            <div className="col-md-6">
+              <label className="form-label">Full Name</label>
+              <input
+                name="name"
+                className={`form-control ${errors.name ? "is-invalid" : ""}`}
+                value={form.name}
+                onChange={handleChange}
+              />
+              {errors.name && <div className="invalid-feedback">{errors.name}</div>}
             </div>
-            {errors.selectedProducts && (
-              <div className="text-danger small mt-1">{errors.selectedProducts}</div>
-            )}
+
+            <div className="col-md-6">
+              <label className="form-label">Email Address</label>
+              <input
+                name="email"
+                type="email"
+                className={`form-control ${errors.email ? "is-invalid" : ""}`}
+                value={form.email}
+                onChange={handleChange}
+              />
+              {errors.email && <div className="invalid-feedback">{errors.email}</div>}
+            </div>
+
+            <div className="col-md-6">
+              <label className="form-label">Participation Type</label>
+              <select
+                name="participation"
+                className={`form-select ${errors.participation ? "is-invalid" : ""}`}
+                value={form.participation}
+                onChange={handleChange}
+              >
+                <option value="">Select an option</option>
+                <option value="In-Person">In-Person</option>
+                <option value="Virtual">Virtual</option>
+                <option value="VIP">VIP</option>
+              </select>
+              {errors.participation && (
+                <div className="invalid-feedback">{errors.participation}</div>
+              )}
+            </div>
+
+            <div className="col-md-6">
+              <label className="form-label">Submission Summary</label>
+              <div className="form-control bg-light h-100">
+                <div>Items selected: {selectedCartItems.length}</div>
+                <div>Total: ${totalAmount}</div>
+              </div>
+            </div>
           </div>
 
-          <button type="submit" className="btn btn-primary">Submit Checkout</button>
+          <div className="mt-4 d-flex flex-wrap gap-2">
+            <button type="submit" className="btn btn-primary" disabled={submitting}>
+              {submitting ? "Submitting..." : "Submit Conference Order"}
+            </button>
+            <a href="cart.html" className="btn btn-outline-secondary">
+              Back to Cart
+            </a>
+          </div>
         </form>
 
-        {status && <div className="alert alert-info mt-3 mb-0">{status}</div>}
-      </div>
+        {status.message && (
+          <div className={`alert alert-${status.type} mt-4 mb-0`}>{status.message}</div>
+        )}
 
-      {jsonOutput && (
-        <div className="mt-4">
-          <h5>Generated JSON</h5>
-          <pre className="bg-light p-3 border rounded">
-            {JSON.stringify(jsonOutput, null, 2)}
-          </pre>
-        </div>
-      )}
+        {serverOrder && (
+          <div className="mt-4">
+            <h5>Saved Order JSON</h5>
+            <pre className="bg-dark text-light rounded p-3 small mb-0">
+              {JSON.stringify(serverOrder, null, 2)}
+            </pre>
+          </div>
+        )}
+      </div>
     </div>
   );
 }
 
-const finalizationRoot = document.getElementById("finalization-root");
-
-if (finalizationRoot) {
-  ReactDOM.createRoot(finalizationRoot).render(<FinalizationPage />);
+function getCartItemKey(item) {
+  return `${item.id}__${item.addedAt || "saved"}`;
 }
+
+ReactDOM.createRoot(document.getElementById("finalization-root")).render(<FinalizationPage />);
