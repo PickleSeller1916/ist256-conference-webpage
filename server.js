@@ -38,6 +38,14 @@ const server = http.createServer(async (req, res) => {
       return sendJson(res, 200, readOrders());
     }
 
+    if (pathname === "/api/health" && req.method === "GET") {
+      return sendJson(res, 200, {
+        ok: true,
+        service: "conference-backend",
+        timestamp: new Date().toISOString()
+      });
+    }
+
     if (pathname === "/api/orders/pending" && req.method === "GET") {
       const pendingOrders = readOrders().filter((order) => order.status === "pending");
       return sendJson(res, 200, pendingOrders);
