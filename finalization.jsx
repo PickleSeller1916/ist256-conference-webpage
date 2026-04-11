@@ -1,9 +1,6 @@
 const { useEffect, useMemo, useState } = React;
 
-const API_BASE =
-  window.location.protocol === "http:" || window.location.protocol === "https:"
-    ? ""
-    : "http://localhost:3000";
+const API_BASE = resolveApiBase();
 
 function FinalizationPage() {
   const [cart, setCart] = useState([]);
@@ -156,7 +153,7 @@ function FinalizationPage() {
         body: JSON.stringify(payload)
       });
 
-      const data = await response.json();
+      const data = await readJsonResponse(response);
 
       if (!response.ok) {
         throw new Error(data.message || "Unable to submit the checkout.");
@@ -345,6 +342,31 @@ function FinalizationPage() {
 
 function getCartItemKey(item) {
   return `${item.id}__${item.addedAt || "saved"}`;
+}
+
+function resolveApiBase() {
+  const { hostname, origin, port, protocol } = window.location;
+  const isLocalHost =
+    hostname === "localhost" || hostname === "127.0.0.1" || hostname === "::1";
+
+  if ((protocol === "http:" || protocol === "https:") && isLocalHost && port === "3000") {
+    return "";
+  }
+
+  return "http://localhost:3000";
+}
+
+async function readJsonResponse(response) {
+  const contentType = response.headers.get("content-type") || "";
+  const bodyText = await response.text();
+
+  if (!contentType.includes("application/json")) {
+    throw new Error(
+      "The page reached a web server, but not the Node.js API. Start `node server.js` and open the site from http://localhost:3000."
+    );
+  }
+
+  return bodyText ? JSON.parse(bodyText) : {};
 }
 
 ReactDOM.createRoot(document.getElementById("finalization-root")).render(<FinalizationPage />);

@@ -1,9 +1,6 @@
 const { useEffect, useState } = React;
 
-const APPROVAL_API_BASE =
-  window.location.protocol === "http:" || window.location.protocol === "https:"
-    ? ""
-    : "http://localhost:3000";
+const APPROVAL_API_BASE = resolveApiBase();
 
 function ApprovalPage() {
   const [pendingOrders, setPendingOrders] = useState([]);
@@ -20,7 +17,7 @@ function ApprovalPage() {
 
     try {
       const response = await fetch(`${APPROVAL_API_BASE}/api/orders/pending`);
-      const data = await response.json();
+      const data = await readJsonResponse(response);
 
       if (!response.ok) {
         throw new Error(data.message || "Unable to load pending orders.");
@@ -48,7 +45,7 @@ function ApprovalPage() {
         body: JSON.stringify({ status: nextStatus })
       });
 
-      const data = await response.json();
+      const data = await readJsonResponse(response);
 
       if (!response.ok) {
         throw new Error(data.message || "Unable to update order status.");
@@ -197,3 +194,28 @@ function ApprovalPage() {
 }
 
 ReactDOM.createRoot(document.getElementById("approval-root")).render(<ApprovalPage />);
+
+function resolveApiBase() {
+  const { hostname, origin, port, protocol } = window.location;
+  const isLocalHost =
+    hostname === "localhost" || hostname === "127.0.0.1" || hostname === "::1";
+
+  if ((protocol === "http:" || protocol === "https:") && isLocalHost && port === "3000") {
+    return "";
+  }
+
+  return "http://localhost:3000";
+}
+
+async function readJsonResponse(response) {
+  const contentType = response.headers.get("content-type") || "";
+  const bodyText = await response.text();
+
+  if (!contentType.includes("application/json")) {
+    throw new Error(
+      "The page reached a web server, but not the Node.js API. Start `node server.js` and open the site from http://localhost:3000."
+    );
+  }
+
+  return bodyText ? JSON.parse(bodyText) : {};
+}
