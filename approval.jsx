@@ -1,7 +1,5 @@
 const { useEffect, useState } = React;
 
-const APPROVAL_API_BASE = resolveApiBase();
-
 function ApprovalPage() {
   const [pendingOrders, setPendingOrders] = useState([]);
   const [status, setStatus] = useState({ type: "", message: "" });
@@ -16,7 +14,7 @@ function ApprovalPage() {
     setLoading(true);
 
     try {
-      const response = await fetch(`${APPROVAL_API_BASE}/api/orders/pending`);
+      const response = await apiFetch("/api/orders/pending", { method: "GET" });
       const data = await readJsonResponse(response);
 
       if (!response.ok) {
@@ -39,7 +37,7 @@ function ApprovalPage() {
     setActiveOrderId(orderId);
 
     try {
-      const response = await fetch(`${APPROVAL_API_BASE}/api/orders/${orderId}/status`, {
+      const response = await apiFetch(`/api/orders/${orderId}/status`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ status: nextStatus })
@@ -195,18 +193,6 @@ function ApprovalPage() {
 
 ReactDOM.createRoot(document.getElementById("approval-root")).render(<ApprovalPage />);
 
-function resolveApiBase() {
-  const { hostname, origin, port, protocol } = window.location;
-  const isLocalHost =
-    hostname === "localhost" || hostname === "127.0.0.1" || hostname === "::1";
-
-  if ((protocol === "http:" || protocol === "https:") && isLocalHost && port === "3000") {
-    return "";
-  }
-
-  return "http://localhost:3000";
-}
-
 async function readJsonResponse(response) {
   const contentType = response.headers.get("content-type") || "";
   const bodyText = await response.text();
@@ -218,4 +204,46 @@ async function readJsonResponse(response) {
   }
 
   return bodyText ? JSON.parse(bodyText) : {};
+}
+
+async function apiFetch(pathname, options) {
+  const candidates = getApiCandidates();
+  let lastResponse = null;
+  let lastError = null;
+
+  for (const base of candidates) {
+    try {
+      const response = await fetch(`${base}${pathname}`, options);
+      const contentType = response.headers.get("content-type") || "";
+
+      if (contentType.includes("application/json")) {
+        return response;
+      }
+
+      lastResponse = response;
+    } catch (error) {
+      lastError = error;
+    }
+  }
+
+  if (lastResponse) {
+    return lastResponse;
+  }
+
+  throw lastError || new Error("Unable to contact the API.");
+}
+
+function getApiCandidates() {
+  const candidates = [];
+  const { origin, protocol } = window.location;
+
+  if (protocol === "http:" || protocol === "https:") {
+    candidates.push(origin);
+  }
+
+  if (!candidates.includes("http://localhost:3000")) {
+    candidates.push("http://localhost:3000");
+  }
+
+  return candidates;
 }

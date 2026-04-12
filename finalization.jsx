@@ -1,7 +1,5 @@
 const { useEffect, useMemo, useState } = React;
 
-const API_BASE = resolveApiBase();
-
 function FinalizationPage() {
   const [cart, setCart] = useState([]);
   const [form, setForm] = useState({
@@ -150,7 +148,7 @@ function FinalizationPage() {
     try {
       await verifyBackendConnection();
 
-      const response = await fetch(`${API_BASE}/api/orders`, {
+      const response = await apiFetch("/api/orders", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload)
@@ -200,7 +198,7 @@ function FinalizationPage() {
         </div>
 
         <div className="alert alert-info">
-          Backend target: <code>{`${API_BASE || window.location.origin}/api/orders`}</code>
+          Backend target: <code>{describeApiTargets()}</code>
           <br />
           Run <code>node server.js</code> and open <code>http://localhost:3000/checkout.html</code> for the full integrated frontend/backend flow.
         </div>
@@ -355,18 +353,6 @@ function getCartItemKey(item) {
   return `${item.id}__${item.addedAt || "saved"}`;
 }
 
-function resolveApiBase() {
-  const { hostname, port, protocol } = window.location;
-  const isLocalHost =
-    hostname === "localhost" || hostname === "127.0.0.1" || hostname === "::1";
-
-  if ((protocol === "http:" || protocol === "https:") && isLocalHost && port === "3000") {
-    return "";
-  }
-
-  return "http://localhost:3000";
-}
-
 async function readJsonResponse(response) {
   const contentType = response.headers.get("content-type") || "";
   const bodyText = await response.text();
@@ -382,9 +368,7 @@ async function readJsonResponse(response) {
 
 async function verifyBackendConnection() {
   try {
-    const response = await fetch(`${API_BASE}/api/health`, {
-      method: "GET"
-    });
+    const response = await apiFetch("/api/health", { method: "GET" });
 
     const data = await readJsonResponse(response);
     if (!response.ok || !data.ok) {
@@ -429,6 +413,52 @@ function buildFetchHelpMessage(error) {
   }
 
   return "Failed to fetch the Node.js backend. Make sure `node server.js` is running and open the page from http://localhost:3000/checkout.html.";
+}
+
+async function apiFetch(pathname, options) {
+  const candidates = getApiCandidates();
+  let lastResponse = null;
+  let lastError = null;
+
+  for (const base of candidates) {
+    try {
+      const response = await fetch(`${base}${pathname}`, options);
+      const contentType = response.headers.get("content-type") || "";
+
+      if (contentType.includes("application/json")) {
+        return response;
+      }
+
+      lastResponse = response;
+    } catch (error) {
+      lastError = error;
+    }
+  }
+
+  if (lastResponse) {
+    return lastResponse;
+  }
+
+  throw lastError || new Error("Unable to contact the API.");
+}
+
+function getApiCandidates() {
+  const candidates = [];
+  const { origin, protocol } = window.location;
+
+  if (protocol === "http:" || protocol === "https:") {
+    candidates.push(origin);
+  }
+
+  if (!candidates.includes("http://localhost:3000")) {
+    candidates.push("http://localhost:3000");
+  }
+
+  return candidates;
+}
+
+function describeApiTargets() {
+  return getApiCandidates().map((base) => `${base}/api/orders`).join(" or ");
 }
 
 ReactDOM.createRoot(document.getElementById("finalization-root")).render(<FinalizationPage />);
