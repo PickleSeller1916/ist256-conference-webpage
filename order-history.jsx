@@ -7,6 +7,7 @@ function OrderHistoryPage() {
   const [emailFilter, setEmailFilter] = useState("");
   const [status, setStatus] = useState({ type: "", message: "" });
   const [loading, setLoading] = useState(true);
+  const [activeDeleteId, setActiveDeleteId] = useState("");
 
   useEffect(() => {
     const savedFinalization = localStorage.getItem("conference_finalization_v1");
@@ -59,6 +60,62 @@ function OrderHistoryPage() {
     loadOrders();
   }
 
+  async function deleteOrder(orderId) {
+    const confirmed = window.confirm(`Delete order ${orderId} from order history?`);
+    if (!confirmed) return;
+
+    setActiveDeleteId(orderId);
+
+    try {
+      const response = await fetch(`${ORDER_API_BASE}/api/orders/${orderId}`, {
+        method: "DELETE"
+      });
+      const data = await readJsonResponse(response);
+
+      if (!response.ok) {
+        throw new Error(data.message || "Unable to delete order.");
+      }
+
+      setOrders((prev) => prev.filter((order) => order.id !== orderId));
+      setStatus({ type: "success", message: data.message || "Order deleted." });
+    } catch (error) {
+      setStatus({
+        type: "danger",
+        message: error.message || "Unable to delete order history."
+      });
+    } finally {
+      setActiveDeleteId("");
+    }
+  }
+
+  async function deleteAllHistory() {
+    const confirmed = window.confirm("Delete all prior order history? This cannot be undone.");
+    if (!confirmed) return;
+
+    setActiveDeleteId("ALL");
+
+    try {
+      const response = await fetch(`${ORDER_API_BASE}/api/orders`, {
+        method: "DELETE"
+      });
+      const data = await readJsonResponse(response);
+
+      if (!response.ok) {
+        throw new Error(data.message || "Unable to delete order history.");
+      }
+
+      setOrders([]);
+      setStatus({ type: "success", message: data.message || "All order history deleted." });
+    } catch (error) {
+      setStatus({
+        type: "danger",
+        message: error.message || "Unable to delete order history."
+      });
+    } finally {
+      setActiveDeleteId("");
+    }
+  }
+
   function badgeClass(statusValue) {
     if (statusValue === "approved") return "bg-success";
     if (statusValue === "declined") return "bg-danger";
@@ -103,6 +160,16 @@ function OrderHistoryPage() {
                 Clear History View
               </button>
             </div>
+            <div className="col-12 d-flex justify-content-end">
+              <button
+                type="button"
+                className="btn btn-danger"
+                disabled={loading || activeDeleteId === "ALL" || orders.length === 0}
+                onClick={deleteAllHistory}
+              >
+                {activeDeleteId === "ALL" ? "Deleting..." : "Delete All Order History"}
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -138,6 +205,16 @@ function OrderHistoryPage() {
                         <span className={`badge ${badgeClass(order.status)} mt-2 text-uppercase`}>
                           {order.status}
                         </span>
+                        <div className="mt-3">
+                          <button
+                            type="button"
+                            className="btn btn-sm btn-outline-danger"
+                            disabled={activeDeleteId === order.id}
+                            onClick={() => deleteOrder(order.id)}
+                          >
+                            {activeDeleteId === order.id ? "Deleting..." : "Delete Order"}
+                          </button>
+                        </div>
                       </div>
                     </div>
 

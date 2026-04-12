@@ -102,6 +102,25 @@ const server = http.createServer(async (req, res) => {
       return sendJson(res, 200, updatedOrder);
     }
 
+    if (pathname === "/api/orders" && req.method === "DELETE") {
+      writeOrders([]);
+      return sendJson(res, 200, { message: "All order history deleted." });
+    }
+
+    if (pathname.startsWith("/api/orders/") && req.method === "DELETE") {
+      const parts = pathname.split("/").filter(Boolean);
+      const orderId = parts[2];
+      const orders = readOrders();
+      const nextOrders = orders.filter((order) => order.id !== orderId);
+
+      if (nextOrders.length === orders.length) {
+        return sendJson(res, 404, { message: "Order not found." });
+      }
+
+      writeOrders(nextOrders);
+      return sendJson(res, 200, { message: `Order ${orderId} deleted.` });
+    }
+
     return serveStaticFile(pathname, res);
   } catch (error) {
     const statusCode = error.message === "Invalid JSON body." ? 400 : 500;
@@ -222,6 +241,6 @@ function sendJson(res, statusCode, data) {
 
 function setCorsHeaders(res) {
   res.setHeader("Access-Control-Allow-Origin", "*");
-  res.setHeader("Access-Control-Allow-Methods", "GET,POST,PUT,OPTIONS");
+  res.setHeader("Access-Control-Allow-Methods", "GET,POST,PUT,DELETE,OPTIONS");
   res.setHeader("Access-Control-Allow-Headers", "Content-Type");
 }
