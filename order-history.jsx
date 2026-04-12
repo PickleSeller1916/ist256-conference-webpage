@@ -53,6 +53,12 @@ function OrderHistoryPage() {
     }
   }
 
+  function clearHistoryView() {
+    setEmailFilter("");
+    setStatus({ type: "", message: "" });
+    loadOrders();
+  }
+
   function badgeClass(statusValue) {
     if (statusValue === "approved") return "bg-success";
     if (statusValue === "declined") return "bg-danger";
@@ -77,7 +83,7 @@ function OrderHistoryPage() {
       <div className="card border-0 shadow-sm mb-4">
         <div className="card-body">
           <div className="row g-3 align-items-end">
-            <div className="col-md-8">
+            <div className="col-md-6">
               <label className="form-label">Filter by Customer Email</label>
               <input
                 type="email"
@@ -87,9 +93,14 @@ function OrderHistoryPage() {
                 onChange={(event) => setEmailFilter(event.target.value)}
               />
             </div>
-            <div className="col-md-4 d-grid">
+            <div className="col-md-3 d-grid">
               <button type="button" className="btn btn-secondary" onClick={loadOrders}>
                 Refresh Order History
+              </button>
+            </div>
+            <div className="col-md-3 d-grid">
+              <button type="button" className="btn btn-outline-danger" onClick={clearHistoryView}>
+                Clear History View
               </button>
             </div>
           </div>
