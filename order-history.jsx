@@ -66,9 +66,7 @@ function OrderHistoryPage() {
     setActiveDeleteId(orderId);
 
     try {
-      const response = await apiFetch(`/api/orders/${orderId}/delete`, {
-        method: "POST"
-      }, setApiDebug);
+      const response = await deleteOrderRequest(orderId, setApiDebug);
       const data = await readJsonResponse(response);
 
       if (!response.ok) {
@@ -94,9 +92,7 @@ function OrderHistoryPage() {
     setActiveDeleteId("ALL");
 
     try {
-      const response = await apiFetch("/api/orders/delete-all", {
-        method: "POST"
-      }, setApiDebug);
+      const response = await deleteAllOrdersRequest(setApiDebug);
       const data = await readJsonResponse(response);
 
       if (!response.ok) {
@@ -288,7 +284,7 @@ async function readJsonResponse(response) {
   return bodyText ? JSON.parse(bodyText) : {};
 }
 
-async function apiFetch(pathname, options, setApiDebug) {
+async function apiFetch(pathname, options, setApiDebug, allowNonJsonResponse = false) {
   const candidates = getApiCandidates();
   let lastResponse = null;
   let lastError = null;
@@ -303,6 +299,13 @@ async function apiFetch(pathname, options, setApiDebug) {
       if (contentType.includes("application/json")) {
         if (setApiDebug) {
           setApiDebug(`Using ${base}${pathname}`);
+        }
+        return response;
+      }
+
+      if (allowNonJsonResponse) {
+        if (setApiDebug) {
+          setApiDebug(attempts.join(" | "));
         }
         return response;
       }
@@ -352,4 +355,32 @@ function getApiCandidates() {
   }
 
   return candidates;
+}
+
+async function deleteOrderRequest(orderId, setApiDebug) {
+  const primaryResponse = await apiFetch(`/api/orders/${orderId}/delete`, {
+    method: "POST"
+  }, setApiDebug, true);
+
+  if (primaryResponse && primaryResponse.status !== 404) {
+    return primaryResponse;
+  }
+
+  return apiFetch(`/api/orders/${orderId}`, {
+    method: "DELETE"
+  }, setApiDebug);
+}
+
+async function deleteAllOrdersRequest(setApiDebug) {
+  const primaryResponse = await apiFetch("/api/orders/delete-all", {
+    method: "POST"
+  }, setApiDebug, true);
+
+  if (primaryResponse && primaryResponse.status !== 404) {
+    return primaryResponse;
+  }
+
+  return apiFetch("/api/orders", {
+    method: "DELETE"
+  }, setApiDebug);
 }
