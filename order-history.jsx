@@ -279,7 +279,7 @@ async function readJsonResponse(response) {
 
   if (!contentType.includes("application/json")) {
     throw new Error(
-      "The page reached a web server, but not the Node.js API. Start `node server.js` and open the site from http://localhost:3000."
+      "The page reached a web server, but not the Node.js API. Start `node server.js` and open the site from http://localhost:3001."
     );
   }
 
@@ -319,6 +319,10 @@ function getApiCandidates() {
 
   if (protocol === "http:" || protocol === "https:") {
     candidates.push(origin);
+  }
+
+  if (!candidates.includes("http://localhost:3001")) {
+    candidates.push("http://localhost:3001");
   }
 
   if (!candidates.includes("http://localhost:3000")) {

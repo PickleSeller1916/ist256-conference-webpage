@@ -2,7 +2,7 @@ const http = require("http");
 const fs = require("fs");
 const path = require("path");
 
-const PORT = Number(process.env.PORT) || 3000;
+const PORT = Number(process.env.PORT) || 3001;
 const DATA_FILE = path.join(__dirname, "orders.json");
 const PUBLIC_DIR = __dirname;
 

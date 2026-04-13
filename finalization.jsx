@@ -359,7 +359,7 @@ async function readJsonResponse(response) {
 
   if (!contentType.includes("application/json")) {
     throw new Error(
-      "The page reached a web server, but not the Node.js API. Start `node server.js` and open the site from http://localhost:3000."
+      "The page reached a web server, but not the Node.js API. Start `node server.js` and open the site from http://localhost:3001."
     );
   }
 
@@ -385,15 +385,15 @@ function getEnvironmentWarning() {
     hostname === "localhost" || hostname === "127.0.0.1" || hostname === "::1";
 
   if (protocol === "file:") {
-    return "This page is opened directly from a file. The backend will be more reliable if you open the site from http://localhost:3000/checkout.html instead.";
+    return "This page is opened directly from a file. The backend will be more reliable if you open the site from http://localhost:3001/checkout.html instead.";
   }
 
-  if (protocol === "https:" && !(isLocalHost && port === "3000")) {
-    return "This page is being served over HTTPS, but the backend uses http://localhost:3000. Some browsers block that mixed-content request. Open the project from http://localhost:3000/checkout.html.";
+  if (protocol === "https:" && !(isLocalHost && (port === "3001" || port === "3000"))) {
+    return "This page is being served over HTTPS, but the backend uses http://localhost:3001. Some browsers block that mixed-content request. Open the project from http://localhost:3001/checkout.html.";
   }
 
-  if (protocol === "http:" && !(isLocalHost && port === "3000")) {
-    return `This page is running from ${window.location.origin}, but the Node backend is expected at http://localhost:3000. To avoid failed requests, open the checkout page from http://localhost:3000/checkout.html.`;
+  if (protocol === "http:" && !(isLocalHost && (port === "3001" || port === "3000"))) {
+    return `This page is running from ${window.location.origin}, but the Node backend is expected at http://localhost:3001. To avoid failed requests, open the checkout page from http://localhost:3001/checkout.html.`;
   }
 
   return "";
@@ -405,14 +405,14 @@ function buildFetchHelpMessage(error) {
     hostname === "localhost" || hostname === "127.0.0.1" || hostname === "::1";
 
   if (protocol === "file:") {
-    return "Failed to fetch because the page is running from a local file instead of the Node server. Start `node server.js` and open http://localhost:3000/checkout.html.";
+    return "Failed to fetch because the page is running from a local file instead of the Node server. Start `node server.js` and open http://localhost:3001/checkout.html.";
   }
 
-  if (protocol === "https:" && !(isLocalHost && port === "3000")) {
-    return "Failed to fetch because the page is on HTTPS while the backend is on http://localhost:3000. Open the project from http://localhost:3000/checkout.html.";
+  if (protocol === "https:" && !(isLocalHost && (port === "3001" || port === "3000"))) {
+    return "Failed to fetch because the page is on HTTPS while the backend is on http://localhost:3001. Open the project from http://localhost:3001/checkout.html.";
   }
 
-  return "Failed to fetch the Node.js backend. Make sure `node server.js` is running and open the page from http://localhost:3000/checkout.html.";
+  return "Failed to fetch the Node.js backend. Make sure `node server.js` is running and open the page from http://localhost:3001/checkout.html.";
 }
 
 async function apiFetch(pathname, options) {
@@ -448,6 +448,10 @@ function getApiCandidates() {
 
   if (protocol === "http:" || protocol === "https:") {
     candidates.push(origin);
+  }
+
+  if (!candidates.includes("http://localhost:3001")) {
+    candidates.push("http://localhost:3001");
   }
 
   if (!candidates.includes("http://localhost:3000")) {
