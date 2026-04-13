@@ -6,6 +6,11 @@ function FinalizationPage() {
     name: "",
     email: "",
     participation: "",
+    paymentType: "",
+    cardName: "",
+    cardNumber: "",
+    expiry: "",
+    cvv: "",
     selectedProducts: []
   });
   const [errors, setErrors] = useState({});
@@ -43,7 +48,11 @@ function FinalizationPage() {
           ...prev,
           name: parsed.customerName || "",
           email: parsed.customerEmail || "",
-          participation: parsed.participation || ""
+          participation: parsed.participation || "",
+          paymentType: parsed.payment?.paymentType || "",
+          cardName: parsed.payment?.cardName || "",
+          cardNumber: parsed.payment?.cardLastFour ? `****${parsed.payment.cardLastFour}` : "",
+          expiry: parsed.payment?.expiry || ""
         }));
       } catch (error) {
         // Ignore invalid local storage values.
@@ -111,6 +120,24 @@ function FinalizationPage() {
     if (!form.name.trim()) nextErrors.name = "Name is required.";
     if (!form.email.trim()) nextErrors.email = "Email is required.";
     if (!form.participation) nextErrors.participation = "Select a participation type.";
+    if (!form.paymentType) nextErrors.paymentType = "Select a payment method.";
+    if (!form.cardName.trim()) nextErrors.cardName = "Name on card is required.";
+
+    const digitsOnly = form.cardNumber.replace(/\D/g, "");
+    if (!digitsOnly) {
+      nextErrors.cardNumber = "Card number is required.";
+    } else if (digitsOnly.length < 13 || digitsOnly.length > 19) {
+      nextErrors.cardNumber = "Enter a valid card number.";
+    }
+
+    if (!/^(0[1-9]|1[0-2])\/\d{2}$/.test(form.expiry.trim())) {
+      nextErrors.expiry = "Use MM/YY format.";
+    }
+
+    if (!/^\d{3,4}$/.test(form.cvv.trim())) {
+      nextErrors.cvv = "Enter a valid 3 or 4 digit CVV.";
+    }
+
     if (!form.selectedProducts.length) {
       nextErrors.selectedProducts = "Select at least one shopping cart item.";
     }
@@ -127,6 +154,12 @@ function FinalizationPage() {
       customerName: form.name.trim(),
       customerEmail: form.email.trim(),
       participation: form.participation,
+      payment: {
+        paymentType: form.paymentType,
+        cardName: form.cardName.trim(),
+        cardLastFour: form.cardNumber.replace(/\D/g, "").slice(-4),
+        expiry: form.expiry.trim()
+      },
       selectedProducts: selectedCartItems.map((item) => ({
         productId: item.id,
         productTitle: item.title,
@@ -321,10 +354,79 @@ function FinalizationPage() {
             </div>
 
             <div className="col-md-6">
+              <label className="form-label">Payment Method</label>
+              <select
+                name="paymentType"
+                className={`form-select ${errors.paymentType ? "is-invalid" : ""}`}
+                value={form.paymentType}
+                onChange={handleChange}
+              >
+                <option value="">Select a card type</option>
+                <option value="Credit Card">Credit Card</option>
+                <option value="Debit Card">Debit Card</option>
+              </select>
+              {errors.paymentType && (
+                <div className="invalid-feedback">{errors.paymentType}</div>
+              )}
+            </div>
+
+            <div className="col-md-6">
+              <label className="form-label">Name on Card</label>
+              <input
+                name="cardName"
+                className={`form-control ${errors.cardName ? "is-invalid" : ""}`}
+                value={form.cardName}
+                onChange={handleChange}
+              />
+              {errors.cardName && <div className="invalid-feedback">{errors.cardName}</div>}
+            </div>
+
+            <div className="col-md-6">
+              <label className="form-label">Card Number</label>
+              <input
+                name="cardNumber"
+                inputMode="numeric"
+                className={`form-control ${errors.cardNumber ? "is-invalid" : ""}`}
+                value={form.cardNumber}
+                onChange={handleChange}
+                placeholder="4111 1111 1111 1111"
+              />
+              {errors.cardNumber && (
+                <div className="invalid-feedback">{errors.cardNumber}</div>
+              )}
+            </div>
+
+            <div className="col-md-3">
+              <label className="form-label">Expiry</label>
+              <input
+                name="expiry"
+                className={`form-control ${errors.expiry ? "is-invalid" : ""}`}
+                value={form.expiry}
+                onChange={handleChange}
+                placeholder="MM/YY"
+              />
+              {errors.expiry && <div className="invalid-feedback">{errors.expiry}</div>}
+            </div>
+
+            <div className="col-md-3">
+              <label className="form-label">CVV</label>
+              <input
+                name="cvv"
+                inputMode="numeric"
+                className={`form-control ${errors.cvv ? "is-invalid" : ""}`}
+                value={form.cvv}
+                onChange={handleChange}
+                placeholder="123"
+              />
+              {errors.cvv && <div className="invalid-feedback">{errors.cvv}</div>}
+            </div>
+
+            <div className="col-md-6">
               <label className="form-label">Submission Summary</label>
               <div className="form-control bg-light h-100">
                 <div>Items selected: {selectedCartItems.length}</div>
                 <div>Total: ${totalAmount}</div>
+                <div>Payment: {form.paymentType || "Not selected yet"}</div>
               </div>
             </div>
           </div>

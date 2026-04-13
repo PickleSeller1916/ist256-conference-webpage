@@ -215,6 +215,22 @@ function validateOrderPayload(payload) {
     return "Participation type is required.";
   }
 
+  if (!payload.payment || typeof payload.payment !== "object") {
+    return "Payment information is required.";
+  }
+
+  if (!String(payload.payment.paymentType || "").trim()) {
+    return "Payment type is required.";
+  }
+
+  if (!String(payload.payment.cardName || "").trim()) {
+    return "Card name is required.";
+  }
+
+  if (!/^\d{4}$/.test(String(payload.payment.cardLastFour || ""))) {
+    return "Card details are incomplete.";
+  }
+
   if (!Array.isArray(payload.selectedProducts) || !payload.selectedProducts.length) {
     return "At least one selected product is required.";
   }

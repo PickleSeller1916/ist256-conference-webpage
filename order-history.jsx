@@ -221,6 +221,10 @@ function OrderHistoryPage() {
                           <div>Participation: {order.participation}</div>
                           <div>Items: {order.cartSummary?.itemCount || 0}</div>
                           <div>Total: ${Number(order.cartSummary?.total || 0).toFixed(2)}</div>
+                          <div>
+                            Payment: {order.payment?.paymentType || "Not provided"}
+                            {order.payment?.cardLastFour ? ` ending in ${order.payment.cardLastFour}` : ""}
+                          </div>
                           {order.reviewedAt && (
                             <div className="small text-muted mt-2">
                               Reviewed: {new Date(order.reviewedAt).toLocaleString()}
