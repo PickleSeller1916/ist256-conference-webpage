@@ -12,6 +12,7 @@ function FinalizationPage() {
   const [serverOrder, setServerOrder] = useState(null);
   const [status, setStatus] = useState({ type: "", message: "" });
   const [submitting, setSubmitting] = useState(false);
+  const [apiDebug, setApiDebug] = useState("");
   const environmentWarning = getEnvironmentWarning();
 
   function loadSavedCart() {
@@ -146,13 +147,13 @@ function FinalizationPage() {
     localStorage.setItem("conference_finalization_v1", JSON.stringify(payload));
 
     try {
-      await verifyBackendConnection();
+      await verifyBackendConnection(setApiDebug);
 
       const response = await apiFetch("/api/orders", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload)
-      });
+      }, setApiDebug);
 
       const data = await readJsonResponse(response);
 
@@ -202,6 +203,12 @@ function FinalizationPage() {
           <br />
           Run <code>node server.js</code> and open <code>http://localhost:3000/checkout.html</code> for the full integrated frontend/backend flow.
         </div>
+
+        {apiDebug && (
+          <div className="alert alert-secondary small">
+            <strong>API debug:</strong> {apiDebug}
+          </div>
+        )}
 
         {environmentWarning && (
           <div className="alert alert-warning">
@@ -366,9 +373,9 @@ async function readJsonResponse(response) {
   return bodyText ? JSON.parse(bodyText) : {};
 }
 
-async function verifyBackendConnection() {
+async function verifyBackendConnection(setApiDebug) {
   try {
-    const response = await apiFetch("/api/health", { method: "GET" });
+    const response = await apiFetch("/api/health", { method: "GET" }, setApiDebug);
 
     const data = await readJsonResponse(response);
     if (!response.ok || !data.ok) {
@@ -415,24 +422,34 @@ function buildFetchHelpMessage(error) {
   return "Failed to fetch the Node.js backend. Make sure `node server.js` is running and open the page from http://localhost:3001/checkout.html.";
 }
 
-async function apiFetch(pathname, options) {
+async function apiFetch(pathname, options, setApiDebug) {
   const candidates = getApiCandidates();
   let lastResponse = null;
   let lastError = null;
+  const attempts = [];
 
   for (const base of candidates) {
     try {
       const response = await fetch(`${base}${pathname}`, options);
       const contentType = response.headers.get("content-type") || "";
+      attempts.push(`${base}${pathname} -> ${response.status} ${contentType || "no-content-type"}`);
 
       if (contentType.includes("application/json")) {
+        if (setApiDebug) {
+          setApiDebug(`Using ${base}${pathname}`);
+        }
         return response;
       }
 
       lastResponse = response;
     } catch (error) {
       lastError = error;
+      attempts.push(`${base}${pathname} -> ${error.message}`);
     }
+  }
+
+  if (setApiDebug) {
+    setApiDebug(attempts.join(" | "));
   }
 
   if (lastResponse) {
@@ -445,6 +462,16 @@ async function apiFetch(pathname, options) {
 function getApiCandidates() {
   const candidates = [];
   const { origin, protocol } = window.location;
+  const manualOverride = window.localStorage.getItem("conference_api_base_override");
+  const queryOverride = new URLSearchParams(window.location.search).get("api");
+
+  if (queryOverride) {
+    candidates.push(queryOverride.replace(/\/$/, ""));
+  }
+
+  if (manualOverride) {
+    candidates.push(manualOverride.replace(/\/$/, ""));
+  }
 
   if (protocol === "http:" || protocol === "https:") {
     candidates.push(origin);

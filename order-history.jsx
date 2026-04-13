@@ -6,6 +6,7 @@ function OrderHistoryPage() {
   const [status, setStatus] = useState({ type: "", message: "" });
   const [loading, setLoading] = useState(true);
   const [activeDeleteId, setActiveDeleteId] = useState("");
+  const [apiDebug, setApiDebug] = useState("");
 
   useEffect(() => {
     const savedFinalization = localStorage.getItem("conference_finalization_v1");
@@ -34,7 +35,7 @@ function OrderHistoryPage() {
     setStatus({ type: "", message: "" });
 
     try {
-      const response = await apiFetch("/api/orders", { method: "GET" });
+      const response = await apiFetch("/api/orders", { method: "GET" }, setApiDebug);
       const data = await readJsonResponse(response);
 
       if (!response.ok) {
@@ -67,7 +68,7 @@ function OrderHistoryPage() {
     try {
       const response = await apiFetch(`/api/orders/${orderId}/delete`, {
         method: "POST"
-      });
+      }, setApiDebug);
       const data = await readJsonResponse(response);
 
       if (!response.ok) {
@@ -95,7 +96,7 @@ function OrderHistoryPage() {
     try {
       const response = await apiFetch("/api/orders/delete-all", {
         method: "POST"
-      });
+      }, setApiDebug);
       const data = await readJsonResponse(response);
 
       if (!response.ok) {
@@ -173,6 +174,7 @@ function OrderHistoryPage() {
       </div>
 
       {status.message && <div className={`alert alert-${status.type}`}>{status.message}</div>}
+      {apiDebug && <div className="alert alert-secondary small">{apiDebug}</div>}
 
       {loading ? (
         <div className="alert alert-info">Loading conference orders...</div>
@@ -286,24 +288,34 @@ async function readJsonResponse(response) {
   return bodyText ? JSON.parse(bodyText) : {};
 }
 
-async function apiFetch(pathname, options) {
+async function apiFetch(pathname, options, setApiDebug) {
   const candidates = getApiCandidates();
   let lastResponse = null;
   let lastError = null;
+  const attempts = [];
 
   for (const base of candidates) {
     try {
       const response = await fetch(`${base}${pathname}`, options);
       const contentType = response.headers.get("content-type") || "";
+      attempts.push(`${base}${pathname} -> ${response.status} ${contentType || "no-content-type"}`);
 
       if (contentType.includes("application/json")) {
+        if (setApiDebug) {
+          setApiDebug(`Using ${base}${pathname}`);
+        }
         return response;
       }
 
       lastResponse = response;
     } catch (error) {
       lastError = error;
+      attempts.push(`${base}${pathname} -> ${error.message}`);
     }
+  }
+
+  if (setApiDebug) {
+    setApiDebug(attempts.join(" | "));
   }
 
   if (lastResponse) {
@@ -316,6 +328,16 @@ async function apiFetch(pathname, options) {
 function getApiCandidates() {
   const candidates = [];
   const { origin, protocol } = window.location;
+  const manualOverride = window.localStorage.getItem("conference_api_base_override");
+  const queryOverride = new URLSearchParams(window.location.search).get("api");
+
+  if (queryOverride) {
+    candidates.push(queryOverride.replace(/\/$/, ""));
+  }
+
+  if (manualOverride) {
+    candidates.push(manualOverride.replace(/\/$/, ""));
+  }
 
   if (protocol === "http:" || protocol === "https:") {
     candidates.push(origin);

@@ -5,6 +5,7 @@ function ApprovalPage() {
   const [status, setStatus] = useState({ type: "", message: "" });
   const [loading, setLoading] = useState(true);
   const [activeOrderId, setActiveOrderId] = useState("");
+  const [apiDebug, setApiDebug] = useState("");
 
   useEffect(() => {
     loadPendingOrders();
@@ -14,7 +15,7 @@ function ApprovalPage() {
     setLoading(true);
 
     try {
-      const response = await apiFetch("/api/orders/pending", { method: "GET" });
+      const response = await apiFetch("/api/orders/pending", { method: "GET" }, setApiDebug);
       const data = await readJsonResponse(response);
 
       if (!response.ok) {
@@ -41,7 +42,7 @@ function ApprovalPage() {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ status: nextStatus })
-      });
+      }, setApiDebug);
 
       const data = await readJsonResponse(response);
 
@@ -92,6 +93,7 @@ function ApprovalPage() {
       </div>
 
       {status.message && <div className={`alert alert-${status.type}`}>{status.message}</div>}
+      {apiDebug && <div className="alert alert-secondary small">{apiDebug}</div>}
 
       {loading ? (
         <div className="alert alert-info">Loading pending orders...</div>
@@ -206,24 +208,34 @@ async function readJsonResponse(response) {
   return bodyText ? JSON.parse(bodyText) : {};
 }
 
-async function apiFetch(pathname, options) {
+async function apiFetch(pathname, options, setApiDebug) {
   const candidates = getApiCandidates();
   let lastResponse = null;
   let lastError = null;
+  const attempts = [];
 
   for (const base of candidates) {
     try {
       const response = await fetch(`${base}${pathname}`, options);
       const contentType = response.headers.get("content-type") || "";
+      attempts.push(`${base}${pathname} -> ${response.status} ${contentType || "no-content-type"}`);
 
       if (contentType.includes("application/json")) {
+        if (setApiDebug) {
+          setApiDebug(`Using ${base}${pathname}`);
+        }
         return response;
       }
 
       lastResponse = response;
     } catch (error) {
       lastError = error;
+      attempts.push(`${base}${pathname} -> ${error.message}`);
     }
+  }
+
+  if (setApiDebug) {
+    setApiDebug(attempts.join(" | "));
   }
 
   if (lastResponse) {
@@ -236,6 +248,16 @@ async function apiFetch(pathname, options) {
 function getApiCandidates() {
   const candidates = [];
   const { origin, protocol } = window.location;
+  const manualOverride = window.localStorage.getItem("conference_api_base_override");
+  const queryOverride = new URLSearchParams(window.location.search).get("api");
+
+  if (queryOverride) {
+    candidates.push(queryOverride.replace(/\/$/, ""));
+  }
+
+  if (manualOverride) {
+    candidates.push(manualOverride.replace(/\/$/, ""));
+  }
 
   if (protocol === "http:" || protocol === "https:") {
     candidates.push(origin);
