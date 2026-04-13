@@ -107,7 +107,26 @@ const server = http.createServer(async (req, res) => {
       return sendJson(res, 200, { message: "All order history deleted." });
     }
 
+    if (pathname === "/api/orders/delete-all" && req.method === "POST") {
+      writeOrders([]);
+      return sendJson(res, 200, { message: "All order history deleted." });
+    }
+
     if (pathname.startsWith("/api/orders/") && req.method === "DELETE") {
+      const parts = pathname.split("/").filter(Boolean);
+      const orderId = parts[2];
+      const orders = readOrders();
+      const nextOrders = orders.filter((order) => order.id !== orderId);
+
+      if (nextOrders.length === orders.length) {
+        return sendJson(res, 404, { message: "Order not found." });
+      }
+
+      writeOrders(nextOrders);
+      return sendJson(res, 200, { message: `Order ${orderId} deleted.` });
+    }
+
+    if (pathname.startsWith("/api/orders/") && pathname.endsWith("/delete") && req.method === "POST") {
       const parts = pathname.split("/").filter(Boolean);
       const orderId = parts[2];
       const orders = readOrders();

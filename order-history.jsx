@@ -65,8 +65,8 @@ function OrderHistoryPage() {
     setActiveDeleteId(orderId);
 
     try {
-      const response = await apiFetch(`/api/orders/${orderId}`, {
-        method: "DELETE"
+      const response = await apiFetch(`/api/orders/${orderId}/delete`, {
+        method: "POST"
       });
       const data = await readJsonResponse(response);
 
@@ -93,8 +93,8 @@ function OrderHistoryPage() {
     setActiveDeleteId("ALL");
 
     try {
-      const response = await apiFetch("/api/orders", {
-        method: "DELETE"
+      const response = await apiFetch("/api/orders/delete-all", {
+        method: "POST"
       });
       const data = await readJsonResponse(response);
 
