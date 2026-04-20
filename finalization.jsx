@@ -33,31 +33,14 @@ function FinalizationPage() {
     setCart(storedCart);
     setForm((prev) => ({
       ...prev,
-      selectedProducts: storedCart.map(getCartItemKey)
+      selectedProducts: prev.selectedProducts.filter((selectedKey) =>
+        storedCart.some((item) => getCartItemKey(item) === selectedKey)
+      )
     }));
   }
 
   useEffect(() => {
     loadSavedCart();
-
-    const savedFinalization = localStorage.getItem("conference_finalization_v1");
-    if (savedFinalization) {
-      try {
-        const parsed = JSON.parse(savedFinalization);
-        setForm((prev) => ({
-          ...prev,
-          name: parsed.customerName || "",
-          email: parsed.customerEmail || "",
-          participation: parsed.participation || "",
-          paymentType: parsed.payment?.paymentType || "",
-          cardName: parsed.payment?.cardName || "",
-          cardNumber: parsed.payment?.cardLastFour ? `****${parsed.payment.cardLastFour}` : "",
-          expiry: parsed.payment?.expiry || ""
-        }));
-      } catch (error) {
-        // Ignore invalid local storage values.
-      }
-    }
 
     function syncCart() {
       loadSavedCart();

@@ -9,16 +9,6 @@ function OrderHistoryPage() {
   const [apiDebug, setApiDebug] = useState("");
 
   useEffect(() => {
-    const savedFinalization = localStorage.getItem("conference_finalization_v1");
-    if (savedFinalization) {
-      try {
-        const parsed = JSON.parse(savedFinalization);
-        setEmailFilter(parsed.customerEmail || "");
-      } catch (error) {
-        // Ignore invalid local storage values.
-      }
-    }
-
     loadOrders();
   }, []);
 
