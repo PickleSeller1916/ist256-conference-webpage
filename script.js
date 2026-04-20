@@ -713,7 +713,7 @@ document.addEventListener("DOMContentLoaded", () => {
               <div class="d-grid gap-2">
                 <button type="button" class="btn btn-outline-primary" data-product-id="${safeAttr(product.id)}">Add to Cart</button>
                 <button type="button" class="btn btn-outline-secondary" data-edit-id="${safeAttr(product.id)}">Load Into Form</button>
-                <button type="button" class="btn btn-outline-danger" data-delete-id="${safeAttr(product.id)}">Delete Product</button>
+                <button type="button" class="btn btn-danger" data-delete-id="${safeAttr(product.id)}">Delete Product</button>
               </div>
             </div>
           </article>
@@ -743,7 +743,7 @@ document.addEventListener("DOMContentLoaded", () => {
             </div>
             <div class="text-end">
               <div class="fw-semibold mb-2">$${formatPrice(item.price)}</div>
-              <button type="button" class="btn btn-sm btn-outline-danger" data-remove-id="${safeAttr(item.id)}">Remove</button>
+              <button type="button" class="btn btn-sm btn-danger" data-remove-id="${safeAttr(item.id)}">Remove</button>
             </div>
           </div>
         `;

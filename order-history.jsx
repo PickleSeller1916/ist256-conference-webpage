@@ -141,7 +141,7 @@ function OrderHistoryPage() {
               </button>
             </div>
             <div className="col-md-3 d-grid">
-              <button type="button" className="btn btn-outline-danger" onClick={clearHistoryView}>
+              <button type="button" className="btn btn-danger" onClick={clearHistoryView}>
                 Clear History View
               </button>
             </div>
@@ -194,7 +194,7 @@ function OrderHistoryPage() {
                         <div className="mt-3">
                           <button
                             type="button"
-                            className="btn btn-sm btn-outline-danger"
+                            className="btn btn-sm btn-danger"
                             disabled={activeDeleteId === order.id}
                             onClick={() => deleteOrder(order.id)}
                           >

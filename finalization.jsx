@@ -271,7 +271,7 @@ function FinalizationPage() {
                       <div className="mb-2">${Number(item.price || 0).toFixed(2)}</div>
                       <button
                         type="button"
-                        className="btn btn-sm btn-outline-danger"
+                        className="btn btn-sm btn-danger"
                         onClick={() => removeProduct(itemKey)}
                       >
                         Remove
