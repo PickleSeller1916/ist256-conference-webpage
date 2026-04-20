@@ -117,15 +117,15 @@ function FinalizationPage() {
   function validate() {
     const nextErrors = {};
 
-    if (!form.name.trim()) nextErrors.name = "Name is required.";
-    if (!form.email.trim()) nextErrors.email = "Email is required.";
+    if (!form.name.trim()) nextErrors.name = "Please enter your name.";
+    if (!form.email.trim()) nextErrors.email = "Please enter your email.";
     if (!form.participation) nextErrors.participation = "Select a participation type.";
     if (!form.paymentType) nextErrors.paymentType = "Select a payment method.";
-    if (!form.cardName.trim()) nextErrors.cardName = "Name on card is required.";
+    if (!form.cardName.trim()) nextErrors.cardName = "Please enter the name on card.";
 
     const digitsOnly = form.cardNumber.replace(/\D/g, "");
     if (!digitsOnly) {
-      nextErrors.cardNumber = "Card number is required.";
+      nextErrors.cardNumber = "Please enter a card number.";
     } else if (digitsOnly.length < 13 || digitsOnly.length > 19) {
       nextErrors.cardNumber = "Enter a valid card number.";
     }
@@ -313,7 +313,7 @@ function FinalizationPage() {
         <form onSubmit={handleSubmit}>
           <div className="row g-3">
             <div className="col-md-6">
-              <label className="form-label">Full Name</label>
+              <label className="form-label">Full Name <span className="required-asterisk">*</span></label>
               <input
                 name="name"
                 className={`form-control ${errors.name ? "is-invalid" : ""}`}
@@ -324,7 +324,7 @@ function FinalizationPage() {
             </div>
 
             <div className="col-md-6">
-              <label className="form-label">Email Address</label>
+              <label className="form-label">Email Address <span className="required-asterisk">*</span></label>
               <input
                 name="email"
                 type="email"
@@ -336,7 +336,7 @@ function FinalizationPage() {
             </div>
 
             <div className="col-md-6">
-              <label className="form-label">Participation Type</label>
+              <label className="form-label">Participation Type <span className="required-asterisk">*</span></label>
               <select
                 name="participation"
                 className={`form-select ${errors.participation ? "is-invalid" : ""}`}
@@ -354,7 +354,7 @@ function FinalizationPage() {
             </div>
 
             <div className="col-md-6">
-              <label className="form-label">Payment Method</label>
+              <label className="form-label">Payment Method <span className="required-asterisk">*</span></label>
               <select
                 name="paymentType"
                 className={`form-select ${errors.paymentType ? "is-invalid" : ""}`}
@@ -371,7 +371,7 @@ function FinalizationPage() {
             </div>
 
             <div className="col-md-6">
-              <label className="form-label">Name on Card</label>
+              <label className="form-label">Name on Card <span className="required-asterisk">*</span></label>
               <input
                 name="cardName"
                 className={`form-control ${errors.cardName ? "is-invalid" : ""}`}
@@ -382,7 +382,7 @@ function FinalizationPage() {
             </div>
 
             <div className="col-md-6">
-              <label className="form-label">Card Number</label>
+              <label className="form-label">Card Number <span className="required-asterisk">*</span></label>
               <input
                 name="cardNumber"
                 inputMode="numeric"
@@ -397,7 +397,7 @@ function FinalizationPage() {
             </div>
 
             <div className="col-md-3">
-              <label className="form-label">Expiry</label>
+              <label className="form-label">Expiry <span className="required-asterisk">*</span></label>
               <input
                 name="expiry"
                 className={`form-control ${errors.expiry ? "is-invalid" : ""}`}
@@ -409,7 +409,7 @@ function FinalizationPage() {
             </div>
 
             <div className="col-md-3">
-              <label className="form-label">CVV</label>
+              <label className="form-label">CVV <span className="required-asterisk">*</span></label>
               <input
                 name="cvv"
                 inputMode="numeric"

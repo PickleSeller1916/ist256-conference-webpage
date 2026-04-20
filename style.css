@@ -2,6 +2,29 @@
   margin-bottom: 7px;
 }
 
+.required-asterisk {
+  color: #dc3545;
+  font-weight: 700;
+}
+
+.site-navbar {
+  box-shadow: 0 1px 0 rgba(0, 0, 0, 0.08);
+}
+
+.site-navbar .nav-link {
+  font-weight: 600;
+}
+
+.site-page {
+  background-color: #f8f9fa;
+  min-height: 100vh;
+}
+
+.site-main {
+  padding-top: 1.5rem;
+  padding-bottom: 2rem;
+}
+
 .bg_home {                       /*background image for homepage*/
     min-height: 100vh;
     
@@ -38,7 +61,7 @@
   position: relative
 }
 
-.navbar ul {
+.home-navbar ul {
   list-style: none;
   display: flex;
   gap: 10px;
@@ -46,7 +69,7 @@
   padding: 0;
 }
 
-.navbar a {
+.home-navbar a {
     text-decoration: none;
     color: #000;
     font-weight: bold;
@@ -56,7 +79,7 @@
     transition: background-color 0.3s;
 }
 
-.navbar a:hover {
+.home-navbar a:hover {
     background-color: #f0f0f0;
 }
 

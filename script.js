@@ -83,7 +83,7 @@ document.addEventListener("DOMContentLoaded", () => {
       ["name", "email", "age", "org"].forEach((key) => {
         const input = fields[key];
         if (!input.value.trim()) {
-          showError(input, "Required");
+          showError(input, "Please complete this field.");
           ok = false;
         }
       });
@@ -325,7 +325,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
       [titleInput, categoryInput, durationInput, priceInput].forEach((input) => {
         if (!input.value.trim()) {
-          showSessionError(input, "Required");
+          showSessionError(input, "Please complete this field.");
           ok = false;
         }
       });
@@ -855,7 +855,7 @@ document.addEventListener("DOMContentLoaded", () => {
       let ok = true;
 
       if (!formFields.id.value.trim()) {
-        showProductError(formFields.id, "Product ID is required.");
+        showProductError(formFields.id, "Please enter a product ID.");
         ok = false;
       } else if (!/^[A-Za-z0-9-]+$/.test(formFields.id.value.trim())) {
         showProductError(formFields.id, "Use letters, numbers, or dashes only.");
@@ -863,22 +863,22 @@ document.addEventListener("DOMContentLoaded", () => {
       }
 
       if (!formFields.title.value.trim()) {
-        showProductError(formFields.title, "Product title is required.");
+        showProductError(formFields.title, "Please enter a product title.");
         ok = false;
       }
 
       if (!formFields.category.value.trim()) {
-        showProductError(formFields.category, "Category is required.");
+        showProductError(formFields.category, "Please enter a category.");
         ok = false;
       }
 
       if (!formFields.duration.value.trim()) {
-        showProductError(formFields.duration, "Duration is required.");
+        showProductError(formFields.duration, "Please enter a duration.");
         ok = false;
       }
 
       if (!formFields.price.value.trim()) {
-        showProductError(formFields.price, "Price is required.");
+        showProductError(formFields.price, "Please enter a price.");
         ok = false;
       } else if (Number(formFields.price.value) < 0) {
         showProductError(formFields.price, "Price must be 0 or more.");
@@ -886,7 +886,7 @@ document.addEventListener("DOMContentLoaded", () => {
       }
 
       if (!formFields.description.value.trim()) {
-        showProductError(formFields.description, "Description is required.");
+        showProductError(formFields.description, "Please enter a description.");
         ok = false;
       }
 
@@ -1017,15 +1017,15 @@ document.addEventListener("DOMContentLoaded", () => {
               <form id="inlineCheckoutForm" novalidate>
                 <div class="row g-3">
                   <div class="col-md-6">
-                    <label for="inlineName" class="form-label">Full Name</label>
+                    <label for="inlineName" class="form-label">Full Name <span class="required-asterisk">*</span></label>
                     <input type="text" id="inlineName" name="name" class="form-control" placeholder="Jordan Lee">
                   </div>
                   <div class="col-md-6">
-                    <label for="inlineEmail" class="form-label">Email Address</label>
+                    <label for="inlineEmail" class="form-label">Email Address <span class="required-asterisk">*</span></label>
                     <input type="email" id="inlineEmail" name="email" class="form-control" placeholder="jordan@example.com">
                   </div>
                   <div class="col-md-6">
-                    <label for="inlineParticipation" class="form-label">Participation Type</label>
+                    <label for="inlineParticipation" class="form-label">Participation Type <span class="required-asterisk">*</span></label>
                     <select id="inlineParticipation" name="participationType" class="form-select">
                       <option value="">Select an option</option>
                       <option value="In-Person">In-Person</option>
@@ -1034,7 +1034,7 @@ document.addEventListener("DOMContentLoaded", () => {
                     </select>
                   </div>
                   <div class="col-md-6">
-                    <label for="inlinePublication" class="form-label">Publication Preference</label>
+                    <label for="inlinePublication" class="form-label">Publication Preference <span class="required-asterisk">*</span></label>
                     <select id="inlinePublication" name="publicationPreference" class="form-select">
                       <option value="">Select a preference</option>
                       <option value="Public attendee list">Public attendee list</option>
@@ -1043,7 +1043,7 @@ document.addEventListener("DOMContentLoaded", () => {
                     </select>
                   </div>
                   <div class="col-12">
-                    <label class="form-label">Session Preferences</label>
+                    <label class="form-label">Session Preferences <span class="required-asterisk">*</span></label>
                     <div id="inlineSessionOptions"></div>
                   </div>
                   <div class="col-12">
@@ -1053,7 +1053,7 @@ document.addEventListener("DOMContentLoaded", () => {
                   <div class="col-12">
                     <div class="form-check">
                       <input type="checkbox" id="inlineConfirm" name="confirmAttendance" class="form-check-input">
-                      <label for="inlineConfirm" class="form-check-label">I confirm that the information above is correct.</label>
+                      <label for="inlineConfirm" class="form-check-label">I confirm that the information above is correct. <span class="required-asterisk">*</span></label>
                     </div>
                   </div>
                   <div class="col-12 d-flex flex-wrap gap-2">
@@ -1196,11 +1196,11 @@ document.addEventListener("DOMContentLoaded", () => {
       }
 
       if (!data.name) {
-        problems.push("Full name is required.");
+        problems.push("Please enter your full name.");
       }
 
       if (!data.email || !validEmail) {
-        problems.push("A valid email address is required.");
+        problems.push("Please enter a valid email address.");
       }
 
       if (!data.participationType) {
