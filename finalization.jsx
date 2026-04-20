@@ -214,12 +214,6 @@ function FinalizationPage() {
           </div>
         </div>
 
-        <div className="alert alert-info">
-          Backend target: <code>{describeApiTargets()}</code>
-          <br />
-          Run <code>node server.js</code> and open <code>http://localhost:3000/checkout.html</code> for the full integrated frontend/backend flow.
-        </div>
-
         {apiDebug && (
           <div className="alert alert-secondary small">
             <strong>API debug:</strong> {apiDebug}
