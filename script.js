@@ -559,7 +559,7 @@ document.addEventListener("DOMContentLoaded", () => {
     let cart = loadCart();
 
     const statusArea = createStatusArea();
-    const payloadArea = createPayloadArea();
+    const payloadArea = { value: "" };
 
     renderProducts(allProducts);
     renderCart();
@@ -1065,11 +1065,6 @@ document.addEventListener("DOMContentLoaded", () => {
               <div id="inlineCheckoutErrors" class="alert alert-danger small mt-3 d-none"></div>
               <div id="inlineCheckoutStatus" class="alert alert-info small mt-3">Use this form to submit your final conference registration directly from the shopping cart.</div>
             </div>
-            <div class="col-lg-5">
-              <h5>Registration JSON</h5>
-              <p class="small text-muted">This JSON object is prepared and sent to the RESTful API using AJAX.</p>
-              <textarea id="inlineCheckoutPayload" class="form-control" rows="18" readonly></textarea>
-            </div>
           </div>
         `
       );
@@ -1078,7 +1073,6 @@ document.addEventListener("DOMContentLoaded", () => {
       const sessionOptions = document.getElementById("inlineSessionOptions");
       const errorsBox = document.getElementById("inlineCheckoutErrors");
       const statusBox = document.getElementById("inlineCheckoutStatus");
-      const payloadBox = document.getElementById("inlineCheckoutPayload");
       const resetBtn = document.getElementById("resetInlineCheckout");
 
       renderSessionOptions();
@@ -1092,7 +1086,6 @@ document.addEventListener("DOMContentLoaded", () => {
         form.reset();
         errorsBox.classList.add("d-none");
         errorsBox.innerHTML = "";
-        payloadBox.value = "";
         statusBox.className = "alert alert-info small mt-3";
         statusBox.textContent = "Use this form to submit your final conference registration directly from the shopping cart.";
       });
@@ -1144,8 +1137,6 @@ document.addEventListener("DOMContentLoaded", () => {
         errorsBox.innerHTML = "";
 
         const payload = buildRegistrationPayload(formData);
-        payloadBox.value = JSON.stringify(payload, null, 2);
-
         window.jQuery.ajax({
           url: "https://jsonplaceholder.typicode.com/posts",
           method: "POST",
@@ -1243,25 +1234,6 @@ document.addEventListener("DOMContentLoaded", () => {
         cartItemsContainer.parentElement.appendChild(area);
       }
       return area;
-    }
-
-    function createPayloadArea() {
-      let wrapper = document.getElementById("payloadPreviewWrap");
-      if (wrapper) {
-        return wrapper.querySelector("textarea");
-      }
-
-      wrapper = document.createElement("section");
-      wrapper.id = "payloadPreviewWrap";
-      wrapper.className = "mt-4";
-      wrapper.innerHTML = `
-        <h5>JSON Payload Preview</h5>
-        <p class="small text-muted">This document is prepared for transport to a future RESTful API using AJAX.</p>
-        <textarea id="payloadPreview" class="form-control" rows="12" readonly></textarea>
-      `;
-
-      cartItemsContainer.parentElement.appendChild(wrapper);
-      return wrapper.querySelector("textarea");
     }
 
     function showStatus(message, type) {
