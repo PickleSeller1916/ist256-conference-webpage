@@ -1,10 +1,38 @@
 const http = require("http");
 const fs = require("fs");
 const path = require("path");
+const mongoose = require("mongoose");
 
 const PORT = Number(process.env.PORT) || 3001;
-const DATA_FILE = path.join(__dirname, "orders.json");
 const PUBLIC_DIR = __dirname;
+
+// Database Connection
+mongoose.connect('mongodb://localhost:27017/conferenceDB')
+  .then(() => console.log("Connected to MongoDB..."))
+  .catch(err => console.error("Could not connect to MongoDB...", err));
+
+// Mongoose Schemas
+const memberSchema = new mongoose.Schema({
+  name: String,
+  email: String,
+  age: String,
+  org: String,
+  phone: String
+});
+
+const orderSchema = new mongoose.Schema({
+  orderId: String,
+  customerName: String,
+  customerEmail: String,
+  participation: String,
+  totalAmount: Number,
+  status: { type: String, default: "Pending" },
+  selectedProducts: Array,
+  createdAt: { type: Date, default: Date.now }
+});
+
+const Member = mongoose.model("Member", memberSchema);
+const Order = mongoose.model("Order", orderSchema);
 
 const MIME_TYPES = {
   ".css": "text/css; charset=utf-8",
@@ -19,8 +47,6 @@ const MIME_TYPES = {
   ".ico": "image/x-icon"
 };
 
-ensureDataFile();
-
 const server = http.createServer(async (req, res) => {
   setCorsHeaders(res);
 
@@ -34,248 +60,105 @@ const server = http.createServer(async (req, res) => {
   const pathname = decodeURIComponent(url.pathname);
 
   try {
+    // API: GET All Orders
     if (pathname === "/api/orders" && req.method === "GET") {
-      return sendJson(res, 200, readOrders());
+      const orders = await Order.find().sort({ createdAt: -1 });
+      return sendJson(res, 200, orders);
     }
 
-    if (pathname === "/api/health" && req.method === "GET") {
-      return sendJson(res, 200, {
-        ok: true,
-        service: "conference-backend",
-        timestamp: new Date().toISOString()
-      });
-    }
-
+    // API: GET Pending Orders
     if (pathname === "/api/orders/pending" && req.method === "GET") {
-      const pendingOrders = readOrders().filter((order) => order.status === "pending");
-      return sendJson(res, 200, pendingOrders);
+      const pending = await Order.find({ status: "Pending" });
+      return sendJson(res, 200, pending);
     }
 
+    // API: POST New Order
     if (pathname === "/api/orders" && req.method === "POST") {
-      const body = await readBody(req);
-      const payload = parseJson(body);
-      const validationError = validateOrderPayload(payload);
-
-      if (validationError) {
-        return sendJson(res, 400, { message: validationError });
-      }
-
-      const orders = readOrders();
-      const order = {
-        id: createOrderId(),
-        status: "pending",
-        submittedAt: new Date().toISOString(),
-        ...payload
-      };
-
-      orders.push(order);
-      writeOrders(orders);
-      return sendJson(res, 201, order);
+      const body = await getRequestBody(req);
+      const payload = JSON.parse(body);
+      const newOrder = new Order({
+        orderId: createOrderId(),
+        customerName: payload.name,
+        customerEmail: payload.email,
+        participation: payload.participation,
+        totalAmount: payload.totalAmount,
+        selectedProducts: payload.selectedProducts
+      });
+      await newOrder.save();
+      return sendJson(res, 201, newOrder);
     }
 
+    // API: PUT Update Status
     if (pathname.startsWith("/api/orders/") && pathname.endsWith("/status") && req.method === "PUT") {
-      const parts = pathname.split("/").filter(Boolean);
-      const orderId = parts[2];
-      const body = await readBody(req);
-      const payload = parseJson(body);
-      const nextStatus = payload && payload.status;
-
-      if (!["approved", "declined"].includes(nextStatus)) {
-        return sendJson(res, 400, { message: 'Status must be "approved" or "declined".' });
-      }
-
-      const orders = readOrders();
-      const orderIndex = orders.findIndex((order) => order.id === orderId);
-
-      if (orderIndex === -1) {
-        return sendJson(res, 404, { message: "Order not found." });
-      }
-
-      const updatedOrder = {
-        ...orders[orderIndex],
-        status: nextStatus,
-        reviewedAt: new Date().toISOString()
-      };
-
-      orders[orderIndex] = updatedOrder;
-      writeOrders(orders);
-      return sendJson(res, 200, updatedOrder);
+      const orderId = pathname.split("/")[3];
+      const body = await getRequestBody(req);
+      const { status } = JSON.parse(body);
+      const updated = await Order.findOneAndUpdate({ orderId }, { status }, { new: true });
+      return sendJson(res, 200, updated);
     }
 
-    if (pathname === "/api/orders" && req.method === "DELETE") {
-      writeOrders([]);
-      return sendJson(res, 200, { message: "All order history deleted." });
-    }
-
-    if (pathname === "/api/orders/delete-all" && req.method === "POST") {
-      writeOrders([]);
-      return sendJson(res, 200, { message: "All order history deleted." });
-    }
-
+    // API: DELETE Order
     if (pathname.startsWith("/api/orders/") && req.method === "DELETE") {
-      const parts = pathname.split("/").filter(Boolean);
-      const orderId = parts[2];
-      const orders = readOrders();
-      const nextOrders = orders.filter((order) => order.id !== orderId);
-
-      if (nextOrders.length === orders.length) {
-        return sendJson(res, 404, { message: "Order not found." });
-      }
-
-      writeOrders(nextOrders);
-      return sendJson(res, 200, { message: `Order ${orderId} deleted.` });
+      const orderId = pathname.split("/")[3];
+      await Order.deleteOne({ orderId });
+      return sendJson(res, 200, { message: "Deleted" });
     }
 
-    if (pathname.startsWith("/api/orders/") && pathname.endsWith("/delete") && req.method === "POST") {
-      const parts = pathname.split("/").filter(Boolean);
-      const orderId = parts[2];
-      const orders = readOrders();
-      const nextOrders = orders.filter((order) => order.id !== orderId);
-
-      if (nextOrders.length === orders.length) {
-        return sendJson(res, 404, { message: "Order not found." });
-      }
-
-      writeOrders(nextOrders);
-      return sendJson(res, 200, { message: `Order ${orderId} deleted.` });
+    // API: POST New Member
+    if (pathname === "/api/members" && req.method === "POST") {
+      const body = await getRequestBody(req);
+      const payload = JSON.parse(body);
+      const newMember = new Member(payload);
+      await newMember.save();
+      return sendJson(res, 201, newMember);
     }
 
-    return serveStaticFile(pathname, res);
+    // Static File Serving
+    serveStaticFile(pathname, res);
+
   } catch (error) {
-    const statusCode = error.message === "Invalid JSON body." ? 400 : 500;
-    return sendJson(res, statusCode, { message: statusCode === 400 ? error.message : "Server error.", detail: error.message });
+    console.error("Server Error:", error);
+    sendJson(res, 500, { message: "Internal Server Error", error: error.message });
   }
 });
 
-server.listen(PORT, () => {
-  console.log(`Conference backend running at http://localhost:${PORT}`);
-});
-
-function ensureDataFile() {
-  if (!fs.existsSync(DATA_FILE)) {
-    fs.writeFileSync(DATA_FILE, "[]\n", "utf8");
-  }
+function setCorsHeaders(res) {
+  res.setHeader("Access-Control-Allow-Origin", "*");
+  res.setHeader("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
+  res.setHeader("Access-Control-Allow-Headers", "Content-Type");
 }
 
-function readOrders() {
-  ensureDataFile();
-
-  try {
-    const raw = fs.readFileSync(DATA_FILE, "utf8");
-    const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? parsed : [];
-  } catch {
-    return [];
-  }
-}
-
-function writeOrders(orders) {
-  fs.writeFileSync(DATA_FILE, JSON.stringify(orders, null, 2) + "\n", "utf8");
-}
-
-function readBody(req) {
+function getRequestBody(req) {
   return new Promise((resolve, reject) => {
     let body = "";
-
-    req.on("data", (chunk) => {
-      body += chunk;
-      if (body.length > 1_000_000) {
-        req.destroy();
-        reject(new Error("Request body too large."));
-      }
-    });
-
+    req.on("data", chunk => body += chunk.toString());
     req.on("end", () => resolve(body));
     req.on("error", reject);
   });
 }
 
-function parseJson(body) {
-  try {
-    return body ? JSON.parse(body) : {};
-  } catch {
-    throw new Error("Invalid JSON body.");
-  }
-}
-
-function validateOrderPayload(payload) {
-  if (!payload || typeof payload !== "object") {
-    return "A JSON order payload is required.";
-  }
-
-  if (!String(payload.customerName || "").trim()) {
-    return "Customer name is required.";
-  }
-
-  if (!String(payload.customerEmail || "").trim()) {
-    return "Customer email is required.";
-  }
-
-  if (!String(payload.participation || "").trim()) {
-    return "Participation type is required.";
-  }
-
-  if (!payload.payment || typeof payload.payment !== "object") {
-    return "Payment information is required.";
-  }
-
-  if (!String(payload.payment.paymentType || "").trim()) {
-    return "Payment type is required.";
-  }
-
-  if (!String(payload.payment.cardName || "").trim()) {
-    return "Card name is required.";
-  }
-
-  if (!/^\d{4}$/.test(String(payload.payment.cardLastFour || ""))) {
-    return "Card details are incomplete.";
-  }
-
-  if (!Array.isArray(payload.selectedProducts) || !payload.selectedProducts.length) {
-    return "At least one selected product is required.";
-  }
-
-  return "";
-}
-
 function createOrderId() {
-  return "ORD-" + Date.now().toString(36).toUpperCase() + "-" + Math.random().toString(36).slice(2, 6).toUpperCase();
+  return "ORD-" + Date.now().toString(36).toUpperCase();
+}
+
+function sendJson(res, statusCode, data) {
+  res.writeHead(statusCode, { "Content-Type": "application/json" });
+  res.end(JSON.stringify(data));
 }
 
 function serveStaticFile(requestPath, res) {
   const safePath = requestPath === "/" ? "/index.html" : requestPath;
   const filePath = path.normalize(path.join(PUBLIC_DIR, safePath));
-
-  if (!filePath.startsWith(PUBLIC_DIR)) {
-    return sendJson(res, 403, { message: "Forbidden." });
-  }
-
-  fs.readFile(filePath, (error, content) => {
-    if (error) {
-      if (error.code === "ENOENT") {
-        res.writeHead(404, { "Content-Type": "text/plain; charset=utf-8" });
-        res.end("Not found");
-        return;
-      }
-
-      res.writeHead(500, { "Content-Type": "text/plain; charset=utf-8" });
-      res.end("Unable to load file");
+  fs.readFile(filePath, (err, content) => {
+    if (err) {
+      res.writeHead(404);
+      res.end("Not Found");
       return;
     }
-
     const ext = path.extname(filePath).toLowerCase();
-    res.writeHead(200, { "Content-Type": MIME_TYPES[ext] || "application/octet-stream" });
+    res.writeHead(200, { "Content-Type": MIME_TYPES[ext] || "text/plain" });
     res.end(content);
   });
 }
 
-function sendJson(res, statusCode, data) {
-  res.writeHead(statusCode, { "Content-Type": "application/json; charset=utf-8" });
-  res.end(JSON.stringify(data, null, 2));
-}
-
-function setCorsHeaders(res) {
-  res.setHeader("Access-Control-Allow-Origin", "*");
-  res.setHeader("Access-Control-Allow-Methods", "GET,POST,PUT,DELETE,OPTIONS");
-  res.setHeader("Access-Control-Allow-Headers", "Content-Type");
-}
+server.listen(PORT, () => console.log(`Server running at http://localhost:${PORT}`));
